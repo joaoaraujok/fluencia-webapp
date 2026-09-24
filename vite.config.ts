@@ -28,9 +28,9 @@ export default defineConfig({
       ],
       manifest: {
         id: '/',
-        name: 'Fluência Oral Infantil - Avaliação de Fala e Leitura',
-        short_name: 'Fluência Oral',
-        description: 'Aplicativo de avaliação educacional e prática de fluência oral infantil com reconhecimento de voz.',
+        name: 'FluencIA - Fluência Oral Infantil com Inteligência Artificial',
+        short_name: 'FluencIA',
+        description: 'Aplicativo de avaliação educacional e prática de fluência oral infantil potencializado por inteligência artificial.',
         lang: 'pt-BR',
         theme_color: '#4F46E5',
         background_color: '#F8FAFC',

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Smartphone,
   Download,
   Share,
   MoreVertical,
@@ -15,6 +14,7 @@ import {
   Loader2,
   ArrowRight
 } from 'lucide-react';
+import { FluenciaLogo } from './FluenciaLogo';
 
 interface InstallAppModalProps {
   isOpen: boolean;
@@ -125,15 +125,13 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({
           </button>
 
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner shrink-0">
-              <Smartphone className="w-6 h-6" />
-            </div>
+            <FluenciaLogo size="md" variant="icon" />
             <div>
               <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-amber-300 mb-1">
-                <Sparkles className="w-3 h-3" /> Aplicativo Nativo
+                <Sparkles className="w-3 h-3" /> Aplicativo Nativo & IA
               </span>
-              <h3 className="font-display font-extrabold text-xl sm:text-2xl leading-tight">
-                Instalar Fluência Oral
+              <h3 className="font-display font-extrabold text-xl sm:text-2xl leading-tight text-white flex items-center gap-1">
+                Instalar Fluenc<span className="text-amber-300">IA</span>
               </h3>
             </div>
           </div>
@@ -317,7 +315,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({
                         Instalação Concluída!
                       </h4>
                       <p className="text-xs text-slate-600 mt-1 max-w-xs mx-auto">
-                        O ícone do <strong>Fluência Oral</strong> foi adicionado ao seu dispositivo. Abra pela tela inicial para usar em tela cheia sem navegador!
+                        O ícone do <strong>FluencIA</strong> foi adicionado ao seu dispositivo. Abra pela tela inicial para usar em tela cheia sem navegador!
                       </p>
                     </div>
                     <button

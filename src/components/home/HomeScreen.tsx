@@ -88,11 +88,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Título Principal */}
         <div className="space-y-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-extrabold tracking-wide mb-1 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Fluência da Fala & Inteligência Artificial</span>
+          </div>
           <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-slate-900 tracking-tight">
-            Fluência Oral Infantil
+            Fluenc<span className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 bg-clip-text text-transparent">IA</span>
           </h2>
           <p className="text-slate-500 text-base sm:text-lg leading-relaxed font-medium max-w-xl mx-auto">
-            Avaliação de fala e leitura com escuta pelo microfone e análise pedagógica automática.
+            Avaliação de fala e leitura infantil com escuta em tempo real pelo microfone e análise pedagógica potencializada por IA.
           </p>
         </div>
 

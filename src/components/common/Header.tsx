@@ -1,6 +1,7 @@
 import React from 'react';
-import { Mic, History, Settings, User, Smartphone, WifiOff, Home } from 'lucide-react';
+import { History, Settings, User, Smartphone, WifiOff, Home } from 'lucide-react';
 import { ChildProfile } from '../../types/child';
+import { FluenciaLogo } from './FluenciaLogo';
 
 interface HeaderProps {
   activeChild: ChildProfile | null;
@@ -28,23 +29,13 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="header-bar print:hidden">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-        {/* Logo & Nome do App */}
+        {/* Logo & Nome do App FluencIA */}
         <div 
           onClick={onGoHome}
-          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group"
-          title="Voltar ao início"
+          className="cursor-pointer group"
+          title="FluencIA - Início"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-200 group-hover:scale-105 transition-transform">
-            <Mic className="w-5 h-5 text-amber-300" />
-          </div>
-          <div>
-            <h1 className="font-display font-extrabold text-base sm:text-lg text-slate-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
-              Fluência Oral
-            </h1>
-            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mt-0.5">
-              Avaliação Infantil
-            </span>
-          </div>
+          <FluenciaLogo size="md" variant="full" />
         </div>
 
         {/* Ações Rápidas */}

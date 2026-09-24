@@ -19,6 +19,7 @@ import { DifficultyLevel } from '../../types/question';
 import { LEVEL_DEFINITIONS } from '../../data/questionBank';
 import { PracticeReport } from './PracticeReport';
 import { DetailedItemList } from './DetailedItemList';
+import { FluenciaLogo } from '../common/FluenciaLogo';
 
 interface ResultDashboardProps {
   session: EvaluationSession;
@@ -85,6 +86,15 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
             <Printer className="w-4 h-4 text-indigo-600" />
             <span className="hidden sm:inline">Imprimir Relatório</span>
           </button>
+        </div>
+      </div>
+
+      {/* Cabeçalho exclusivo para impressão com a marca FluencIA */}
+      <div className="hidden print:flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+        <FluenciaLogo size="md" variant="full" />
+        <div className="text-right text-xs text-slate-500 font-medium">
+          <p className="font-bold text-slate-700">Relatório Pedagógico</p>
+          <p>{new Date(session.timestamp).toLocaleDateString('pt-BR')}</p>
         </div>
       </div>
 

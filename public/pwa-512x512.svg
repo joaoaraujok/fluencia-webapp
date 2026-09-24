@@ -1,56 +1,135 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Gradiente de Fundo Principal -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="50%" stop-color="#6366F1" />
-      <stop offset="100%" stop-color="#8B5CF6" />
+      <stop offset="0%" stop-color="#3730A3" />
+      <stop offset="35%" stop-color="#4F46E5" />
+      <stop offset="75%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#7C3AED" />
     </linearGradient>
-    <linearGradient id="micGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FCD34D" />
-      <stop offset="100%" stop-color="#F59E0B" />
+
+    <!-- Brilho de IA de fundo -->
+    <radialGradient id="aiBackGlow" cx="65%" cy="32%" r="60%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.4" />
+      <stop offset="40%" stop-color="#C084FC" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Gradiente da Estrela de IA -->
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#FB7185" />
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#312E81" flood-opacity="0.35"/>
+
+    <!-- Gradiente das Ondas da Fala -->
+    <linearGradient id="wave1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="wave2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="wave3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="wave4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F472B6" />
+      <stop offset="100%" stop-color="#DB2777" />
+    </linearGradient>
+    <linearGradient id="wave5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#9333EA" />
+    </linearGradient>
+
+    <!-- Sombra suave para o balão -->
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#1E1B4B" flood-opacity="0.38"/>
+    </filter>
+
+    <!-- Filtro de brilho intenso na estrela IA -->
+    <filter id="sparkleGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
 
-  <!-- Background with smooth rounded edges -->
+  <!-- Fundo Squircle Suave -->
   <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="128" fill="url(#aiBackGlow)" />
 
-  <!-- Playful Decorative Stars / Dots -->
-  <circle cx="100" cy="110" r="14" fill="#FDE047" opacity="0.8" />
-  <circle cx="410" cy="120" r="18" fill="#6EE7B7" opacity="0.8" />
-  <circle cx="90" cy="380" r="12" fill="#F472B6" opacity="0.8" />
-  <circle cx="420" cy="400" r="16" fill="#FDE047" opacity="0.8" />
+  <!-- Partículas sutis de IA no fundo -->
+  <circle cx="95" cy="120" r="6" fill="#BAE6FD" opacity="0.6" />
+  <circle cx="410" cy="110" r="8" fill="#FDE047" opacity="0.7" />
+  <circle cx="85" cy="390" r="7" fill="#F472B6" opacity="0.5" />
+  <circle cx="430" cy="380" r="6" fill="#6EE7B7" opacity="0.6" />
 
-  <!-- Sound Waves (Left & Right) -->
-  <!-- Left Waves -->
-  <path d="M 160 210 A 60 60 0 0 0 160 302" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" fill="none" opacity="0.8" />
-  <path d="M 125 180 A 100 100 0 0 0 125 332" stroke="#A5B4FC" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.6" />
-
-  <!-- Right Waves -->
-  <path d="M 352 210 A 60 60 0 0 1 352 302" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" fill="none" opacity="0.8" />
-  <path d="M 387 180 A 100 100 0 0 1 387 332" stroke="#A5B4FC" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.6" />
-
-  <!-- Center Microphone Body -->
-  <g filter="url(#shadow)">
-    <!-- Mic Capsule -->
-    <rect x="216" y="140" width="80" height="150" rx="40" fill="url(#micGrad)" />
-    
-    <!-- Mic Grid Lines -->
-    <line x1="228" y1="190" x2="284" y2="190" stroke="#D97706" stroke-width="5" stroke-linecap="round" />
-    <line x1="228" y1="220" x2="284" y2="220" stroke="#D97706" stroke-width="5" stroke-linecap="round" />
-    
-    <!-- Cradle / Arc -->
-    <path d="M 196 230 A 60 60 0 0 0 316 230" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" fill="none" />
-    
-    <!-- Stem and Stand Base -->
-    <line x1="256" y1="290" x2="256" y2="350" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
-    <path d="M 206 350 L 306 350" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+  <!-- Balão de Fala Principal (Voz / Comunicação) -->
+  <g filter="url(#softShadow)">
+    <path d="M 120 120
+             C 120 86, 148 60, 184 60
+             L 328 60
+             C 364 60, 392 86, 392 120
+             L 392 260
+             C 392 294, 364 320, 328 320
+             L 220 320
+             L 155 375
+             C 142 386, 120 376, 120 358
+             Z"
+          fill="#FFFFFF" />
   </g>
 
-  <!-- Smile on Microphone to make it friendly -->
-  <path d="M 244 252 Q 256 264 268 252" stroke="#78350F" stroke-width="4" stroke-linecap="round" fill="none" />
-  <circle cx="238" cy="242" r="3.5" fill="#78350F" />
-  <circle cx="274" cy="242" r="3.5" fill="#78350F" />
+  <!-- Ondas Sonoras da Fluência Vocal (5 Barras Harmônicas) -->
+  <g transform="translate(10, 0)">
+    <!-- Barra 1 (Agilidade/Início) -->
+    <rect x="156" y="165" width="20" height="70" rx="10" fill="url(#wave1)" />
+    <!-- Barra 2 (Cadência) -->
+    <rect x="194" y="135" width="20" height="130" rx="10" fill="url(#wave2)" />
+    <!-- Barra 3 (Ritmo Central) -->
+    <rect x="232" y="105" width="20" height="180" rx="10" fill="url(#wave3)" />
+    <!-- Barra 4 (Prosódia) -->
+    <rect x="270" y="130" width="20" height="140" rx="10" fill="url(#wave4)" />
+    <!-- Barra 5 (Expressão) -->
+    <rect x="308" y="160" width="20" height="80" rx="10" fill="url(#wave5)" />
+  </g>
+
+  <!-- Curva do Sorriso / Conexão Empática Infantil -->
+  <path d="M 195 272 Q 256 298 317 272" stroke="#6366F1" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.85" />
+
+  <!-- ESTRELA DE IA (Destaque FluencIA) -->
+  <g filter="url(#sparkleGlow)" transform="translate(365, 78)">
+    <!-- Grande Estrela Radiante de 4 pontas -->
+    <path d="M 0 -48 
+             Q 0 0 48 0 
+             Q 0 0 0 48 
+             Q 0 0 -48 0 
+             Q 0 0 0 -48 Z" 
+          fill="url(#sparkleGrad)" />
+    <circle cx="0" cy="0" r="10" fill="#FFFFFF" />
+  </g>
+
+  <!-- Mini estrela IA de apoio -->
+  <g transform="translate(422, 142) scale(0.45)">
+    <path d="M 0 -36 Q 0 0 36 0 Q 0 0 0 36 Q 0 0 -36 0 Q 0 0 0 -36 Z" fill="#FDE047" opacity="0.9" />
+  </g>
+
+  <!-- Badge / Monograma "IA" no canto inferior com estilo moderno de inteligência artificial -->
+  <g transform="translate(256, 436)">
+    <rect x="-92" y="-24" width="184" height="48" rx="24" fill="#0F172A" opacity="0.88" />
+    <rect x="-92" y="-24" width="184" height="48" rx="24" fill="none" stroke="#6366F1" stroke-width="2" opacity="0.6" />
+    
+    <!-- Texto FLUENC + IA -->
+    <text x="-16" y="8" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#FFFFFF" letter-spacing="1.5" text-anchor="middle">
+      FLUENC
+    </text>
+    <text x="52" y="8" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#FBBF24" letter-spacing="1" text-anchor="middle">
+      IA
+    </text>
+    <circle cx="70" cy="-6" r="3" fill="#38BDF8" />
+  </g>
 </svg>

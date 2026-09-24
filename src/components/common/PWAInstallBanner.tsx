@@ -23,10 +23,10 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({
           </div>
           <div>
             <p className="text-sm font-bold tracking-wide">
-              Instale o Fluência Oral no seu dispositivo!
+              Instale o Fluenc<span className="text-amber-300">IA</span> no seu dispositivo!
             </p>
             <p className="text-xs text-indigo-100 hidden sm:block">
-              Acesse mais rápido em tela cheia, ideal para usar em tablets e celulares com as crianças.
+              Acesso rápido em tela cheia com Inteligência Artificial e modo offline, ideal para tablets e celulares.
             </p>
           </div>
         </div>

@@ -1,17 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="100%" stop-color="#8B5CF6" />
+    <linearGradient id="bgFav" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338CA" />
+      <stop offset="60%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#7C3AED" />
     </linearGradient>
-    <linearGradient id="micGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FCD34D" />
+    <linearGradient id="aiStar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
       <stop offset="100%" stop-color="#F59E0B" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
-  <rect x="216" y="140" width="80" height="150" rx="40" fill="url(#micGrad)" />
-  <path d="M 196 230 A 60 60 0 0 0 316 230" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" fill="none" />
-  <line x1="256" y1="290" x2="256" y2="350" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" />
-  <path d="M 206 350 L 306 350" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" />
+
+  <!-- Fundo -->
+  <rect width="512" height="512" rx="128" fill="url(#bgFav)" />
+
+  <!-- Balão de Fala Branco Nítido -->
+  <path d="M 110 110
+           C 110 75, 140 50, 180 50
+           L 332 50
+           C 372 50, 402 75, 402 110
+           L 402 260
+           C 402 295, 372 320, 332 320
+           L 220 320
+           L 150 380
+           C 136 392, 110 380, 110 360
+           Z"
+        fill="#FFFFFF" />
+
+  <!-- Ondas Vocais com Alto Contraste -->
+  <rect x="156" y="170" width="24" height="70" rx="12" fill="#0284C7" />
+  <rect x="198" y="130" width="24" height="145" rx="12" fill="#059669" />
+  <rect x="240" y="95" width="24" height="200" rx="12" fill="#D97706" />
+  <rect x="282" y="130" width="24" height="145" rx="12" fill="#DB2777" />
+  <rect x="324" y="165" width="24" height="85" rx="12" fill="#7C3AED" />
+
+  <!-- Estrela IA de Alto Brilho e Destaque -->
+  <g transform="translate(385, 75)">
+    <path d="M 0 -58 Q 0 0 58 0 Q 0 0 0 58 Q 0 0 -58 0 Q 0 0 0 -58 Z" fill="url(#aiStar)" />
+    <circle cx="0" cy="0" r="14" fill="#FFFFFF" />
+  </g>
+
+  <!-- Detalhe 'IA' em texto estilizado -->
+  <text x="256" y="445" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">
+    Fluenc<tspan fill="#FBBF24">IA</tspan>
+  </text>
 </svg>

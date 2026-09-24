@@ -11,7 +11,7 @@ if ('serviceWorker' in navigator) {
       console.log('Nova versão do PWA disponível para atualização.');
     },
     onOfflineReady() {
-      console.log('Fluência Oral pronto para funcionar offline.');
+      console.log('FluencIA pronto para funcionar offline.');
     }
   });
 }
