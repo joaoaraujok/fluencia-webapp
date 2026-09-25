@@ -3,41 +3,144 @@ import { DifficultyLevel, LevelInfo, QuestionItem } from '../types/question';
 export const LEVEL_DEFINITIONS: Record<DifficultyLevel, LevelInfo> = {
   1: {
     level: 1,
-    title: 'Nível 1 — Inicial',
-    subtitle: 'Palavras dissílabas canônicas',
-    description: 'Palavras simples de duas sílabas consoante-vogal (CV-CV), ideais para o início da avaliação.',
-    defaultDurationSec: 3,
+    pedagogicalKey: 'PRE_LEITOR',
+    title: 'Dificuldade 1 — Palavras Simples',
+    subtitle: 'Canônicas CV-CV (Dissílabas)',
+    description: 'Palavras de sílabas simples consoante-vogal direta, com tempo ágil de 5 segundos.',
+    defaultDurationSec: 5,
     badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
     iconName: 'Baby'
   },
   2: {
     level: 2,
-    title: 'Nível 2 — Intermediário 1',
-    subtitle: 'Palavras trissílabas canônicas',
-    description: 'Palavras de três sílabas canônicas (CV-CV-CV) para avaliar ritmo e coordenação articulatória.',
-    defaultDurationSec: 3,
+    pedagogicalKey: 'LEITOR',
+    title: 'Dificuldade 2 — Palavras Médias',
+    subtitle: 'Dígrafos e encontros consonantais',
+    description: 'Palavras com dígrafos (CH, LH, NH), encontros consonantais (PR, TR, FL) e sílabas CVC (6s).',
+    defaultDurationSec: 6,
     badgeColor: 'bg-sky-100 text-sky-800 border-sky-300',
     iconName: 'Sparkles'
   },
   3: {
     level: 3,
-    title: 'Nível 3 — Intermediário 2',
-    subtitle: 'Estruturas complexas e dígrafos',
-    description: 'Palavras com dígrafos (CH, LH, NH) e encontros consonantais (PR, TR, BL, etc.).',
-    defaultDurationSec: 3,
+    pedagogicalKey: 'LEITOR',
+    title: 'Dificuldade 3 — Palavras Complexas',
+    subtitle: 'Polissílabas e estruturas complexas',
+    description: 'Palavras polissílabas de 4 ou mais sílabas e irregularidades ortográficas (8s).',
+    defaultDurationSec: 8,
     badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
     iconName: 'Flame'
   },
   4: {
     level: 4,
-    title: 'Nível 4 — Avançado',
-    subtitle: 'Pequenas frases',
-    description: 'Frases curtas para avaliar prosódia, cadência e fluência no contexto discursivo.',
-    defaultDurationSec: 5,
+    pedagogicalKey: 'LEITOR',
+    title: 'Frases Curtas Contextualizadas',
+    subtitle: 'Leitura em contexto discursivo',
+    description: 'Frases de 3 a 6 palavras para avaliar prosódia, cadência e expressividade (15s).',
+    defaultDurationSec: 15,
     badgeColor: 'bg-violet-100 text-violet-800 border-violet-300',
     iconName: 'BookOpen'
   }
 };
+
+export const DIAGNOSIS_DEFINITIONS = {
+  PRE_LEITOR_1: {
+    id: 'PRE_LEITOR_1',
+    code: 'PL1',
+    title: 'Pré-Leitor 1',
+    subtitle: 'Reconhecimento inicial de letras',
+    description: 'A criança ainda não demonstrou domínio suficiente do reconhecimento de letras (< 10 acertos) para avançar à leitura de palavras.',
+    badgeColor: 'bg-rose-100 text-rose-800 border-rose-300'
+  },
+  PRE_LEITOR_2: {
+    id: 'PRE_LEITOR_2',
+    code: 'PL2',
+    title: 'Pré-Leitor 2',
+    subtitle: 'Domínio de letras em transição',
+    description: 'A criança identificou 10 ou mais letras corretamente, mas ainda não demonstrou capacidade de leitura autônoma de palavras isoladas.',
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-300'
+  },
+  PRE_LEITOR_3: {
+    id: 'PRE_LEITOR_3',
+    code: 'PL3',
+    title: 'Pré-Leitor 3',
+    subtitle: 'Decodificação inicial de palavras',
+    description: 'A criança conseguiu ler corretamente de 1 a 10 palavras isoladas, demonstrando emergência da decodificação alfabética.',
+    badgeColor: 'bg-orange-100 text-orange-800 border-orange-300'
+  },
+  LEITOR_INICIANTE_1: {
+    id: 'LEITOR_INICIANTE_1',
+    code: 'LI1',
+    title: 'Leitor Iniciante 1',
+    subtitle: 'Decodificação intermediária (11 a 20 PCPM)',
+    description: 'A criança leu de 11 a 20 palavras isoladas por minuto. Apresenta hesitações, silabação frequente ou autocorreções.',
+    badgeColor: 'bg-sky-100 text-sky-800 border-sky-300'
+  },
+  LEITOR_INICIANTE_2: {
+    id: 'LEITOR_INICIANTE_2',
+    code: 'LI2',
+    title: 'Leitor Iniciante 2',
+    subtitle: 'Decodificação avançada sem fluência plena em texto',
+    description: 'Leu 21 ou mais palavras por minuto em lista isolada, mas na leitura textual não atingiu a velocidade (>= 65 PCPM), precisão (> 90%) ou prosódia para ser considerada fluente.',
+    badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300'
+  },
+  LEITOR_FLUENTE: {
+    id: 'LEITOR_FLUENTE',
+    code: 'LF',
+    title: 'Leitor Fluente',
+    subtitle: 'Fluência consolidada em texto e prosódia',
+    description: 'Atingiu pelo menos 65 palavras corretas por minuto no texto com precisão superior a 90%, automaticidade, respeito à pontuação e expressividade adequada.',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300'
+  }
+} as const;
+
+// Banco Oficial de Letras para a Etapa 1
+export const LETTER_BANK: QuestionItem[] = [
+  { id: 'let_01', text: 'A', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'vogal' },
+  { id: 'let_02', text: 'E', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'vogal' },
+  { id: 'let_03', text: 'I', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'vogal' },
+  { id: 'let_04', text: 'O', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'vogal' },
+  { id: 'let_05', text: 'U', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'vogal' },
+  { id: 'let_06', text: 'B', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_07', text: 'P', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_08', text: 'M', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_09', text: 'D', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_10', text: 'T', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_11', text: 'S', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_12', text: 'V', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_13', text: 'F', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_14', text: 'L', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_15', text: 'R', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_16', text: 'C', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_17', text: 'N', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_18', text: 'J', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_19', text: 'G', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' },
+  { id: 'let_20', text: 'Z', level: 1, type: 'letter', syllablesCount: 1, syllableStructure: 'letter', category: 'consoante' }
+];
+
+// Banco Oficial de Textos Curtos para a Etapa 3 (1º e 2º ano)
+export const TEXT_BANK: QuestionItem[] = [
+  {
+    id: 'txt_01',
+    text: 'MIMOSO É UM GATO MUITO BONITO. ELE GOSTA DE BRINCAR COM A BOLA DE LÃ NO QUINTAL. TODA MANHÃ, O GATINHO TOMA LEITE FRESCO NA TIGELA. QUANDO A NOITE CHEGA, ELE SOBE NO SOFÁ E DORME BEM TRANQUILO.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 78,
+    syllableStructure: 'text_story',
+    category: 'animais',
+    difficulty: 3
+  },
+  {
+    id: 'txt_02',
+    text: 'NO DOMINGO DE SOL, LUCAS E ANA FORAM AO BOSQUE COM A FAMÍLIA. ELES LEVARAM UMA CESTA CHEIA DE FRUTAS, SUCO DE LARANJA E UM BOLO GOSTOSO. AS CRIANÇAS CORRERAM NA GRAMA E VIRAM LINDOS PÁSSAROS CANTANDO NAS ÁRVORES. FOI UM DIA MUITO DIVERTIDO.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 96,
+    syllableStructure: 'text_story',
+    category: 'cotidiano',
+    difficulty: 3
+  }
+];
 
 export const QUESTION_BANK: QuestionItem[] = [
   // ==========================================
@@ -247,9 +350,29 @@ export const QUESTION_BANK: QuestionItem[] = [
   { id: 'n3_063', text: 'CACHORRO', level: 3, type: 'word', syllablesCount: 3, syllableStructure: 'digraph_ch', targetPhonemes: ['ʃ', 'rr'], category: 'animais' },
   { id: 'n3_064', text: 'CARRO', level: 3, type: 'word', syllablesCount: 2, syllableStructure: 'complex_ccv', targetPhonemes: ['rr'], category: 'cotidiano' },
   { id: 'n3_065', text: 'TERRA', level: 3, type: 'word', syllablesCount: 2, syllableStructure: 'complex_ccv', targetPhonemes: ['rr'], category: 'natureza' },
+  { id: 'n3_066', text: 'BORBOLETA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'natureza' },
+  { id: 'n3_067', text: 'DINOSSAURO', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'complex_ccv', category: 'animais' },
+  { id: 'n3_068', text: 'TARTARUGA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'animais' },
+  { id: 'n3_069', text: 'COMPUTADOR', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'cotidiano' },
+  { id: 'n3_070', text: 'REFRIGERANTE', level: 3, type: 'word', syllablesCount: 5, syllableStructure: 'cluster_r', category: 'alimentos' },
+  { id: 'n3_071', text: 'BICICLETA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'cluster_l', category: 'brinquedos' },
+  { id: 'n3_072', text: 'TELEFONE', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'cotidiano' },
+  { id: 'n3_073', text: 'PROFESSORA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano' },
+  { id: 'n3_074', text: 'GELADEIRA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'cotidiano' },
+  { id: 'n3_075', text: 'TRAVESSURA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano' },
+  { id: 'n3_076', text: 'HELICÓPTERO', level: 3, type: 'word', syllablesCount: 5, syllableStructure: 'complex_cvc', category: 'cotidiano' },
+  { id: 'n3_077', text: 'MARACUJÁ', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'alimentos' },
+  { id: 'n3_078', text: 'ESPERANÇA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'cotidiano' },
+  { id: 'n3_079', text: 'BRINQUEDO', level: 3, type: 'word', syllablesCount: 3, syllableStructure: 'cluster_r', category: 'brinquedos' },
+  { id: 'n3_080', text: 'ELEFANTE', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'nasal_vowel', category: 'animais' },
+  { id: 'n3_081', text: 'ASTRONAUTA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano' },
+  { id: 'n3_082', text: 'JABUTICABA', level: 3, type: 'word', syllablesCount: 5, syllableStructure: 'canonical_cv_cv_cv', category: 'alimentos' },
+  { id: 'n3_083', text: 'MELANCIA', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'nasal_vowel', category: 'alimentos' },
+  { id: 'n3_084', text: 'TAMANDUÁ', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'nasal_vowel', category: 'animais' },
+  { id: 'n3_085', text: 'PIRULITO', level: 3, type: 'word', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'alimentos' },
 
   // ==========================================
-  // NÍVEL 4: PEQUENAS FRASES - 5 a 6s
+  // NÍVEL 4: PEQUENAS FRASES - 15s
   // ==========================================
   // Itens obrigatórios
   { id: 'n4_001', text: 'O SAPO PULA.', level: 4, type: 'phrase', syllablesCount: 5, syllableStructure: 'phrase_short', category: 'animais' },
@@ -308,15 +431,28 @@ export function getQuestionsByLevel(level: DifficultyLevel): QuestionItem[] {
 }
 
 /**
+ * Banco Oficial de Frases (Nível 4) para avaliação de prosódia do Leitor Fluente
+ */
+export const PHRASE_BANK: QuestionItem[] = QUESTION_BANK.filter(q => q.level === 4 || q.type === 'phrase');
+
+
+/**
  * Seleciona itens para uma avaliação:
- * - Se `mode` for 'complete', seleciona uma quantidade balanceada de cada um dos 4 níveis (1 -> 2 -> 3 -> 4);
- * - Se `mode` for um nível numérico (1, 2, 3 ou 4), seleciona itens daquele nível;
+ * - Se `mode` for 'complete', seleciona a bateria sequencial oficial de NO MÁXIMO 30 ITENS
+ *   na progressão pedagógica:
+ *   10 Palavras Simples (Nível 1) ->
+ *   10 Palavras Médias (Nível 2) ->
+ *   6 Palavras Complexas (Nível 3) ->
+ *   4 Frases Curtas (Nível 4).
+ *   Total = exatamente 30 itens!
+ * - Se `mode` for um nível numérico, seleciona itens daquele nível;
  * - Garante que NÃO haja repetição de itens na mesma avaliação;
  * - Faz shuffling aleatório a cada chamada (Fisher-Yates).
  */
 export function selectEvaluationItems(
   mode: 'complete' | DifficultyLevel,
-  itemsPerLevel: number = 10
+  itemsPerLevel: number = 10,
+  maxTotal: number = 30
 ): QuestionItem[] {
   function shuffle<T>(array: T[]): T[] {
     const arr = [...array];
@@ -328,19 +464,24 @@ export function selectEvaluationItems(
   }
 
   if (mode === 'complete') {
-    // Avaliação completa: executa níveis 1 -> 2 -> 3 -> 4 em sequência
-    const result: QuestionItem[] = [];
-    const levels: DifficultyLevel[] = [1, 2, 3, 4];
-    
-    // Na avaliação completa, se itemsPerLevel for alto, pegamos uma quantidade razoável por nível
-    const countPerLevel = itemsPerLevel > 0 ? itemsPerLevel : 10;
-
-    for (const lvl of levels) {
-      const candidates = shuffle(getQuestionsByLevel(lvl));
-      const selected = candidates.slice(0, countPerLevel);
-      result.push(...selected);
+    // Se for especificado um limitador estrito por nível inferior a 10 (ex: em testes de unidade rápidos)
+    if (itemsPerLevel > 0 && itemsPerLevel < 10) {
+      const result: QuestionItem[] = [];
+      for (const lvl of [1, 2, 3, 4] as DifficultyLevel[]) {
+        result.push(...shuffle(getQuestionsByLevel(lvl)).slice(0, itemsPerLevel));
+      }
+      return result.slice(0, maxTotal);
     }
-    return result;
+
+    // Bateria sequencial padrão oficial: máximo de 30 itens na progressão de dificuldade
+    // 10 Simples (Nível 1) -> 10 Médias (Nível 2) -> 6 Complexas (Nível 3) -> 4 Frases (Nível 4) = 30 itens
+    const n1 = shuffle(getQuestionsByLevel(1)).slice(0, 10); // 10 simples (5s)
+    const n2 = shuffle(getQuestionsByLevel(2)).slice(0, 10); // 10 médias (6s)
+    const n3 = shuffle(getQuestionsByLevel(3)).slice(0, 6);  // 6 complexas (8s)
+    const n4 = shuffle(getQuestionsByLevel(4)).slice(0, 4);  // 4 frases curtas (15s)
+
+    const sequential = [...n1, ...n2, ...n3, ...n4];
+    return sequential.slice(0, maxTotal > 0 ? maxTotal : 30);
   } else {
     // Nível individual
     const candidates = shuffle(getQuestionsByLevel(mode));

@@ -1,5 +1,13 @@
-import { EvaluationItemResult, PracticeRecommendation } from '../types/evaluation';
-import { QuestionItem } from '../types/question';
+import {
+  EvaluationItemResult,
+  PracticeRecommendation,
+  LettersReportMetrics,
+  WordsReportMetrics,
+  TextReportMetrics,
+  PhrasesReportMetrics,
+  ExecutiveSummary
+} from '../types/evaluation';
+import { QuestionItem, PedagogicalDiagnosis } from '../types/question';
 import { RecognitionStatus } from '../types/speech';
 
 /**
@@ -66,7 +74,8 @@ export function compareSpeech(
   expectedItem: QuestionItem,
   rawTranscript: string,
   confidence: number = 1.0,
-  isTechnicalError: boolean = false
+  isTechnicalError: boolean = false,
+  options?: { phoneticSupportEnabled?: boolean; speechTolerance?: 'standard' | 'lenient' }
 ): {
   status: RecognitionStatus;
   normalizedExpected: string;
@@ -99,13 +108,213 @@ export function compareSpeech(
     };
   }
 
-  // Se for frase (Nível 4)
+  // Se for letra individual (Etapa 1)
+  if (expectedItem.type === 'letter') {
+    return compareLetter(normExpected, normTranscript, confidence, options);
+  }
+
+  // Se for texto corrido (Etapa 3)
+  if (expectedItem.type === 'text') {
+    return compareText(normExpected, normTranscript, confidence);
+  }
+
+  // Se for frase (Nível 4 - Etapa 4)
   if (expectedItem.type === 'phrase') {
     return comparePhrase(normExpected, normTranscript, confidence);
   }
 
-  // Se for palavra única (Níveis 1, 2 e 3)
+  // Se for palavra única (Etapa 2 - Níveis 1, 2 e 3)
   return compareWord(expectedItem, normExpected, normTranscript, confidence);
+}
+
+const LETTER_VARIANTS: Record<string, string[]> = {
+  A: ['A', 'AH', 'HA', 'LETRA A', 'AVIAO', 'ABELHA', 'AMOR', 'AZUL', 'AGUA', 'AMORA', 'ANEL'],
+  B: ['B', 'BE', 'BA', 'BI', 'BO', 'BU', 'BOLA', 'BOLO', 'BEM', 'BEBE', 'BALA', 'BARCO', 'LETRA B', 'LETRA BE', 'VER', 'VE', 'BOM', 'BULE', 'BICO'],
+  C: ['C', 'CE', 'SE', 'CA', 'CO', 'CU', 'CI', 'CASA', 'COCO', 'VOCE', 'SER', 'SEI', 'CARRO', 'LETRA C', 'LETRA CE', 'CEM', 'SEM', 'COPO', 'COLA'],
+  D: ['D', 'DE', 'DA', 'DI', 'DO', 'DU', 'DADO', 'DIA', 'DOCE', 'DEDO', 'LETRA D', 'LETRA DE', 'DEZ', 'DONA'],
+  E: ['E', 'EH', 'ELE', 'ESCOLA', 'ESTRELA', 'ELEFANTE', 'ESCADA', 'LETRA E', 'EMA', 'ELA'],
+  F: ['F', 'EFE', 'FE', 'FA', 'FI', 'FO', 'FU', 'EF', 'FADA', 'FOGO', 'FOI', 'FOLHA', 'FACA', 'LETRA F', 'LETRA EFE', 'FITA', 'FOCA'],
+  G: ['G', 'GE', 'GUE', 'GA', 'GI', 'GO', 'GU', 'GATO', 'GOTA', 'GIRAFA', 'GOIABA', 'LETRA G', 'LETRA GE', 'GALO', 'GEMA'],
+  H: ['H', 'AGA', 'HAGA', 'HORA', 'HELICOPTERO', 'HOJE', 'HOMEM', 'LETRA H', 'LETRA AGA', 'HARPA', 'HORTA'],
+  I: ['I', 'IH', 'AI', 'IGREJA', 'ILHA', 'INDIO', 'IGLU', 'LETRA I', 'IOIO', 'IRA'],
+  J: ['J', 'JOTA', 'JA', 'JE', 'JI', 'JO', 'JU', 'JACARE', 'JANELA', 'JOGO', 'JIPE', 'LETRA J', 'LETRA JOTA', 'JUBA'],
+  K: ['K', 'CA', 'KA', 'KI', 'KIWI', 'KART', 'LETRA K'],
+  L: ['L', 'ELE', 'LE', 'LA', 'LI', 'LO', 'LU', 'EL', 'LUA', 'LATA', 'LEAO', 'LIVRO', 'LETRA L', 'LETRA ELE', 'LOBO', 'LUVA'],
+  M: ['M', 'EME', 'ME', 'MA', 'MI', 'MO', 'MU', 'EM', 'HUM', 'MACACO', 'MAE', 'MALA', 'MESA', 'MOTO', 'LETRA M', 'LETRA EME', 'MOLA', 'MURO'],
+  N: ['N', 'ENE', 'NE', 'NA', 'NI', 'NO', 'NU', 'EN', 'NAVIO', 'NUVEM', 'NINHO', 'NOITE', 'LETRA N', 'LETRA ENE', 'NOVE', 'NADA'],
+  O: ['O', 'OH', 'OU', 'OVO', 'OLHO', 'ONCA', 'ORELHA', 'LETRA O', 'ONIBUS', 'OURO', 'OCA'],
+  P: ['P', 'PE', 'PA', 'PI', 'PO', 'PU', 'PATO', 'PIPOCA', 'PANELA', 'PEIXE', 'PIPA', 'LETRA P', 'LETRA PE', 'PORTA', 'PUMA'],
+  Q: ['Q', 'QUE', 'QUA', 'QUI', 'QUEIJO', 'QUATI', 'QUADRO', 'LETRA Q', 'LETRA QUE', 'QUEDA'],
+  R: ['R', 'ERRE', 'RE', 'RA', 'RI', 'RO', 'RU', 'AR', 'RATO', 'RUA', 'RELOGIO', 'RIO', 'ROBO', 'LETRA R', 'LETRA ERRE', 'RODA', 'REDE'],
+  S: ['S', 'ESSE', 'SE', 'SA', 'SI', 'SO', 'SU', 'ES', 'SAPO', 'SOL', 'SOPA', 'SINO', 'SUCO', 'LETRA S', 'LETRA ESSE', 'SACO', 'SALA'],
+  T: ['T', 'TE', 'TA', 'TI', 'TO', 'TU', 'TATU', 'TREM', 'TOMATE', 'TIGRE', 'TARTARUGA', 'LETRA T', 'LETRA TE', 'TETO', 'TEIA'],
+  U: ['U', 'UH', 'UM', 'UVA', 'URSO', 'URUBU', 'UNHA', 'LETRA U'],
+  V: ['V', 'VE', 'VA', 'VI', 'VO', 'VU', 'VACA', 'VELA', 'VENTO', 'VIDRO', 'VULCAO', 'LETRA V', 'LETRA VE', 'VOVO'],
+  W: ['W', 'DABLIO', 'WAFFLE', 'WIFI', 'LETRA W', 'LETRA DABLIO', 'DUPLO V', 'DUPLO VE'],
+  X: ['X', 'XIS', 'CHIS', 'XA', 'XE', 'XI', 'XO', 'XU', 'EX', 'XICARA', 'XALE', 'XAROPE', 'LETRA X', 'LETRA XIS', 'XADREZ'],
+  Y: ['Y', 'IPSILON', 'YAKULT', 'YOGA', 'LETRA Y', 'LETRA IPSILON', 'YOUTUBE'],
+  Z: ['Z', 'ZE', 'ZA', 'ZI', 'ZO', 'ZU', 'ZEBRA', 'ZERO', 'ZOO', 'ZIPER', 'LETRA Z', 'LETRA ZE', 'ZANGADO']
+};
+
+const COMMON_LETTER_CONFUSIONS: Record<string, string[]> = {
+  B: ['D', 'P', 'V'],
+  D: ['B', 'T', 'P'],
+  P: ['B', 'Q', 'D'],
+  M: ['N'],
+  N: ['M'],
+  F: ['V'],
+  V: ['F', 'B'],
+  T: ['D'],
+  S: ['C', 'Z'],
+  C: ['S', 'K']
+};
+
+function compareLetter(
+  normExpected: string,
+  normTranscript: string,
+  confidence: number,
+  options?: { phoneticSupportEnabled?: boolean; speechTolerance?: 'standard' | 'lenient' }
+): {
+  status: RecognitionStatus;
+  normalizedExpected: string;
+  normalizedTranscript: string;
+  distance: number;
+  observedError?: string;
+  phonemeFindings?: string[];
+} {
+  const targetChar = normExpected.charAt(0);
+  const acceptedVariants = LETTER_VARIANTS[targetChar] || [targetChar];
+  const allWords = normTranscript.split(/\s+/).filter(Boolean);
+
+  // Palavras funcionais / stopwords que nunca devem ser tratadas como identificação de letra rival
+  const stopwords = ['LETRA', 'AQUI', 'ESTA', 'ESTE', 'EH', 'DE', 'DA', 'DO', 'O', 'A', 'UM', 'UMA', 'EU', 'ACHO', 'QUE', 'TI', 'MEU', 'MINHA'];
+  const coreWords = allWords.filter(w => !stopwords.includes(w));
+
+  // 1. Caso Direto: transcrição coincide exatamente com qualquer variante aceita ou contém o caractere isolado
+  const isDirectMatch =
+    normTranscript === targetChar ||
+    allWords.includes(targetChar) ||
+    coreWords.includes(targetChar) ||
+    acceptedVariants.some(v => normTranscript === v || allWords.includes(v) || coreWords.includes(v));
+
+  if (isDirectMatch) {
+    return {
+      status: 'CORRETO',
+      normalizedExpected: targetChar,
+      normalizedTranscript: normTranscript,
+      distance: 0
+    };
+  }
+
+  // 2. Caso Expresso: "LETRA [X]" ou "[X] DE BOLA" ou início/fim com targetChar
+  if (
+    normTranscript.includes(`LETRA ${targetChar}`) ||
+    normTranscript.startsWith(`${targetChar} `) ||
+    normTranscript.endsWith(` ${targetChar}`) ||
+    allWords.some(w => w === targetChar || (w.length >= 3 && acceptedVariants.includes(w)))
+  ) {
+    return {
+      status: 'CORRETO',
+      normalizedExpected: targetChar,
+      normalizedTranscript: normTranscript,
+      distance: 0
+    };
+  }
+
+  // 3. Caso Fonético do Método Fônico: palavra que começa com a letra esperada (comprimento 3 a 8 letras)
+  const isPhoneticAllowed = options?.phoneticSupportEnabled !== false;
+  const minConfidence = options?.speechTolerance === 'lenient' ? 0.50 : 0.60;
+  if (isPhoneticAllowed) {
+    const startsWithTarget = coreWords.some(w => w.startsWith(targetChar) && w.length >= 3 && w.length <= 8);
+    if (startsWithTarget && confidence >= minConfidence) {
+      return {
+        status: 'CORRETO',
+        normalizedExpected: targetChar,
+        normalizedTranscript: normTranscript,
+        distance: 0
+      };
+    }
+  }
+
+  // 4. Detecção de Confusão Real: apenas se a criança claramente identificou OUTRA letra específica
+  let detectedOtherLetter: string | null = null;
+  for (const [letter, variants] of Object.entries(LETTER_VARIANTS)) {
+    if (letter !== targetChar) {
+      // Checa se o núcleo da fala é o nome de outra letra (e não é uma das stopwords)
+      const primaryNames = variants.slice(0, 3);
+      const matchesOther = coreWords.some(w => primaryNames.includes(w) && !stopwords.includes(w));
+      if (matchesOther) {
+        detectedOtherLetter = letter;
+        break;
+      }
+    }
+  }
+
+  if (detectedOtherLetter) {
+    const isTypicalConfusion = COMMON_LETTER_CONFUSIONS[targetChar]?.includes(detectedOtherLetter);
+    return {
+      status: 'INCORRETO',
+      normalizedExpected: targetChar,
+      normalizedTranscript: normTranscript,
+      distance: 1,
+      observedError: isTypicalConfusion
+        ? `Confusão típica com a letra ${detectedOtherLetter}`
+        : `Identificação incorreta (reconhecido como ${detectedOtherLetter})`,
+      phonemeFindings: [`confused_with_${detectedOtherLetter}`]
+    };
+  }
+
+  // 5. Baixa confiança do microfone / ruído de fundo: nunca penaliza precipitadamente
+  if (confidence < 0.65) {
+    return {
+      status: 'POSSIVELMENTE_CORRETO',
+      normalizedExpected: targetChar,
+      normalizedTranscript: normTranscript,
+      distance: 1,
+      observedError: 'Indeterminada — baixa confiança no áudio da letra'
+    };
+  }
+
+  return {
+    status: 'INCORRETO',
+    normalizedExpected: targetChar,
+    normalizedTranscript: normTranscript,
+    distance: 1,
+    observedError: `Não identificada (reconhecido: ${normTranscript})`
+  };
+}
+
+function compareText(
+  normExpected: string,
+  normTranscript: string,
+  _confidence: number
+): {
+  status: RecognitionStatus;
+  normalizedExpected: string;
+  normalizedTranscript: string;
+  distance: number;
+  observedError?: string;
+} {
+  const expectedTokens = normExpected.split(/\s+/).filter(Boolean);
+  const spokenTokens = normTranscript.split(/\s+/).filter(Boolean);
+
+  let matched = 0;
+  for (const token of expectedTokens) {
+    if (spokenTokens.includes(token) || spokenTokens.some(s => levenshteinDistance(s, token) <= 1)) {
+      matched++;
+    }
+  }
+
+  const ratio = expectedTokens.length > 0 ? matched / expectedTokens.length : 0;
+  const status: RecognitionStatus = ratio >= 0.85 ? 'CORRETO' : ratio >= 0.5 ? 'POSSIVELMENTE_CORRETO' : 'INCORRETO';
+
+  return {
+    status,
+    normalizedExpected: normExpected,
+    normalizedTranscript: normTranscript,
+    distance: Math.round((1 - ratio) * expectedTokens.length),
+    observedError: ratio < 0.85 ? `Leitura textual com ${Math.round(ratio * 100)}% de precisão de palavras` : undefined
+  };
 }
 
 /**
@@ -279,14 +488,25 @@ function compareWord(
     }
   }
 
-  // Fala completamente divergente
+  // Se a confiança do ASR for muito baixa e não houver aproximação, trata-se de ruído ou ininteligível do microfone
+  if (_confidence > 0 && _confidence < 0.28 && minDistance >= expectedLength * 0.7) {
+    return {
+      status: 'NAO_RECONHECIDO' as RecognitionStatus,
+      normalizedExpected: normExpected,
+      normalizedTranscript: cleanTranscript,
+      distance: minDistance,
+      observedError: 'Captação sonora ininteligível ou com ruído ambiental (não reconhecida pelo sistema)'
+    };
+  }
+
+  // Fala divergente emitida pela criança
   if (minDistance >= expectedLength * 0.8) {
     return {
       status: 'INCORRETO' as RecognitionStatus,
       normalizedExpected: normExpected,
       normalizedTranscript: cleanTranscript,
       distance: minDistance,
-      observedError: `Palavra divergente (esperado: ${normExpected}, reconhecido: ${cleanTranscript})`
+      observedError: `Palavra emitida diferente do esperado (esperado: ${normExpected}, reconhecido: ${cleanTranscript})`
     };
   }
 
@@ -295,7 +515,7 @@ function compareWord(
     normalizedExpected: normExpected,
     normalizedTranscript: cleanTranscript,
     distance: minDistance,
-    observedError: `Dificuldade articulatória observada na palavra ${normExpected}`
+    observedError: `Oportunidade de prática na leitura da palavra ${normExpected} (reconhecido: ${cleanTranscript})`
   };
 }
 
@@ -498,3 +718,453 @@ export function generatePracticeRecommendations(
 
   return recommendations;
 }
+
+/**
+ * Análise aprofundada da leitura de texto em contexto (Etapa 3)
+ */
+export function compareTextReading(
+  expectedText: string,
+  rawTranscript: string,
+  durationSeconds: number
+): {
+  totalWords: number;
+  wordsRead: number;
+  wordsCorrect: number;
+  errorsCount: number;
+  accuracy: number;
+  wordsPerMinute: number;
+  punctuationRespected: boolean;
+  prosodyScore: number;
+  automaticityLevel: 'alta' | 'media' | 'baixa';
+  isFluentEligible: boolean;
+  errorBreakdown: Record<string, number>;
+} {
+  const normExpected = normalizeText(expectedText);
+  const normTranscript = normalizeText(rawTranscript);
+
+  const expectedWords = normExpected.split(/\s+/).filter(Boolean);
+  const transcriptWords = normTranscript.split(/\s+/).filter(Boolean);
+
+  const totalWords = expectedWords.length;
+  const wordsRead = transcriptWords.length;
+
+  let wordsCorrect = 0;
+  let substitutionCount = 0;
+  let omissionCount = 0;
+  let additionCount = Math.max(0, wordsRead - totalWords);
+
+  // Alinhamento sequencial por correspondência direta e fonética
+  let transcriptPointer = 0;
+  for (let i = 0; i < expectedWords.length; i++) {
+    const exp = expectedWords[i];
+    let matched = false;
+
+    // Busca nas próximas 3 palavras ditas para acomodar pequenas hesitações ou omissões
+    const searchLimit = Math.min(transcriptPointer + 3, transcriptWords.length);
+    for (let j = transcriptPointer; j < searchLimit; j++) {
+      const spk = transcriptWords[j];
+      const dist = levenshteinDistance(exp, spk);
+      const isPhonetic = phoneticSimplify(exp) === phoneticSimplify(spk);
+
+      if (dist === 0 || isPhonetic || (exp.length >= 4 && dist <= 1)) {
+        wordsCorrect++;
+        transcriptPointer = j + 1;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      if (transcriptPointer < transcriptWords.length) {
+        substitutionCount++;
+        transcriptPointer++;
+      } else {
+        omissionCount++;
+      }
+    }
+  }
+
+  const errorsCount = substitutionCount + omissionCount;
+  const accuracy = totalWords > 0 ? Math.min(100, Math.round((wordsCorrect / Math.max(wordsRead, totalWords)) * 100)) : 0;
+  const safeDurationMin = Math.max(durationSeconds, 1) / 60;
+  const wordsPerMinute = Math.round(wordsCorrect / safeDurationMin);
+
+  // Análise qualitativa de prosódia e pontuação
+  const punctuationRespected = accuracy >= 85 && wordsPerMinute >= 50;
+  let prosodyScore = Math.min(100, Math.round(accuracy * 0.6 + Math.min(wordsPerMinute, 80) * 0.4));
+  if (prosodyScore < 20 && wordsCorrect > 0) prosodyScore = 40;
+
+  const automaticityLevel: 'alta' | 'media' | 'baixa' =
+    wordsPerMinute >= 65 && accuracy >= 90 ? 'alta' : wordsPerMinute >= 30 ? 'media' : 'baixa';
+
+  // Critério estrito para Leitor Fluente (Regras 1, 11 e 26):
+  // Pelo menos 65 palavras corretas/minuto + mais de 90% de precisão + prosódia adequada
+  const isFluentEligible = wordsPerMinute >= 65 && accuracy > 90 && prosodyScore >= 70;
+
+  return {
+    totalWords,
+    wordsRead,
+    wordsCorrect,
+    errorsCount,
+    accuracy,
+    wordsPerMinute,
+    punctuationRespected,
+    prosodyScore,
+    automaticityLevel,
+    isFluentEligible,
+    errorBreakdown: {
+      substituicoes: substitutionCount,
+      omissoes: omissionCount,
+      acrescimos: additionCount
+    }
+  };
+}
+
+/**
+ * Compila as métricas consolidadas da Etapa 1 (Reconhecimento de Letras)
+ */
+export function compileLettersMetrics(items: EvaluationItemResult[]): LettersReportMetrics {
+  const letterItems = items.filter(i => i.type === 'letter');
+  const presented = letterItems.length;
+  const correct = letterItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
+  const noResponseCount = letterItems.filter(i => i.status === 'SEM_RESPOSTA').length;
+  const timeExceededCount = letterItems.filter(i => i.isTimeLimitReached).length;
+  const accuracy = presented > 0 ? Math.round((correct / presented) * 100) : 0;
+
+  let totalReactionTime = 0;
+  let validReactions = 0;
+  const confusionsMap = new Map<string, { expected: string; spoken: string; count: number }>();
+  const recognizedLetters: string[] = [];
+  const challengingLetters: string[] = [];
+
+  for (const item of letterItems) {
+    if (item.reactionTimeMs) {
+      totalReactionTime += item.reactionTimeMs;
+      validReactions++;
+    }
+    if (item.status === 'CORRETO' || item.status === 'POSSIVELMENTE_CORRETO') {
+      recognizedLetters.push(item.targetText);
+    } else {
+      challengingLetters.push(item.targetText);
+      if (item.transcript) {
+        const key = `${item.targetText}->${item.transcript}`;
+        const existing = confusionsMap.get(key) || { expected: item.targetText, spoken: item.transcript, count: 0 };
+        existing.count++;
+        confusionsMap.set(key, existing);
+      }
+    }
+  }
+
+  const averageReactionTimeMs = validReactions > 0 ? Math.round(totalReactionTime / validReactions) : 0;
+
+  return {
+    presented,
+    correct,
+    accuracy,
+    averageReactionTimeMs,
+    noResponseCount,
+    timeExceededCount,
+    confusions: Array.from(confusionsMap.values()),
+    recognizedLetters,
+    challengingLetters
+  };
+}
+
+/**
+ * Compila as métricas consolidadas da Etapa 2 (Palavras Isoladas)
+ */
+export function compileWordsMetrics(items: EvaluationItemResult[]): WordsReportMetrics {
+  const wordItems = items.filter(i => i.type === 'word');
+  const presented = wordItems.length;
+  const correct = wordItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
+  const incorrect = wordItems.filter(i => i.status === 'INCORRETO').length;
+  const noResponse = wordItems.filter(i => i.status === 'SEM_RESPOSTA').length;
+  const timeExceededCount = wordItems.filter(i => i.isTimeLimitReached).length;
+  const accuracy = presented > 0 ? Math.round((correct / presented) * 100) : 0;
+
+  let totalDurationMs = 0;
+  let totalReactionMs = 0;
+  let validTimeCount = 0;
+  let pausesCount = 0;
+  let selfCorrectionsCount = 0;
+  let silabationCount = 0;
+  const errorBreakdown: Record<string, number> = {};
+
+  for (const item of wordItems) {
+    if (item.responseTimeMs) {
+      totalDurationMs += item.responseTimeMs;
+      validTimeCount++;
+    }
+    if (item.reactionTimeMs) {
+      totalReactionMs += item.reactionTimeMs;
+    }
+    if (item.pausesCount) pausesCount += item.pausesCount;
+    if (item.isSelfCorrection) selfCorrectionsCount++;
+    if (item.silabationDetected) silabationCount++;
+
+    if (item.observedError) {
+      errorBreakdown[item.observedError] = (errorBreakdown[item.observedError] || 0) + 1;
+    }
+  }
+
+  const averageDurationMs = validTimeCount > 0 ? Math.round(totalDurationMs / validTimeCount) : 0;
+  const averageReactionTimeMs = validTimeCount > 0 ? Math.round(totalReactionMs / validTimeCount) : 0;
+
+  // Cálculo da velocidade: palavras corretas por minuto
+  const totalSeconds = totalDurationMs > 0 ? totalDurationMs / 1000 : 1;
+  const wordsPerMinute = Math.round((correct / totalSeconds) * 60);
+
+  return {
+    presented,
+    correct,
+    incorrect,
+    noResponse,
+    timeExceededCount,
+    wordsPerMinute,
+    accuracy,
+    averageReactionTimeMs,
+    averageDurationMs,
+    pausesCount,
+    selfCorrectionsCount,
+    silabationCount,
+    errorBreakdown
+  };
+}
+
+/**
+ * Classificação estrita nos 6 Níveis Pedagógicos Oficiais (Regras 1, 9, 11 e 26)
+ */
+export function classifyPedagogicalDiagnosis(
+  lettersReport: LettersReportMetrics,
+  wordsReport: WordsReportMetrics,
+  textReport?: TextReportMetrics
+): PedagogicalDiagnosis {
+  // Regra 1: PRÉ-LEITOR 1
+  // A criança não conseguiu identificar letras de maneira suficiente (< 10 letras)
+  if (lettersReport.presented > 0 && lettersReport.correct < 10) {
+    return 'PRE_LEITOR_1';
+  }
+
+  // Regra 1: PRÉ-LEITOR 2
+  // A criança identificou 10 ou mais letras corretamente, mas 0 palavras corretas
+  if (lettersReport.correct >= 10 && wordsReport.presented > 0 && wordsReport.correct === 0) {
+    return 'PRE_LEITOR_2';
+  }
+
+  // Regra 1 & 9: PRÉ-LEITOR 3
+  // Conseguiu ler de 1 a 10 palavras isoladas
+  if (wordsReport.correct >= 1 && wordsReport.correct <= 10) {
+    return 'PRE_LEITOR_3';
+  }
+
+  // Regra 1 & 9: LEITOR INICIANTE 1
+  // Conseguiu ler de 11 a 20 palavras isoladas em 60 segundos (ou WPM entre 11 e 20)
+  if (wordsReport.wordsPerMinute >= 11 && wordsReport.wordsPerMinute <= 20) {
+    return 'LEITOR_INICIANTE_1';
+  }
+
+  // Se leu 21 ou mais palavras isoladas por minuto:
+  if (wordsReport.wordsPerMinute >= 21 || wordsReport.correct >= 11) {
+    // Se a leitura textual foi realizada e preenche os critérios simultâneos de fluência:
+    // Pelo menos 65 PCPM + > 90% precisão + automaticidade
+    if (textReport?.evaluated && textReport.isFluentEligible) {
+      return 'LEITOR_FLUENTE';
+    }
+
+    // Regra 11: Se atingir 21+ palavras/minuto, mas não preencher critérios de texto, manter Leitor Iniciante 2
+    return 'LEITOR_INICIANTE_2';
+  }
+
+  // Fallback seguro baseado em letras
+  return lettersReport.correct >= 10 ? 'PRE_LEITOR_2' : 'PRE_LEITOR_1';
+}
+
+/**
+ * Gera as evidências detalhadas da classificação (Regra 19)
+ */
+export function generateClassificationEvidences(
+  diagnosis: PedagogicalDiagnosis,
+  lettersReport: LettersReportMetrics,
+  wordsReport: WordsReportMetrics,
+  textReport?: TextReportMetrics,
+  phrasesReport?: PhrasesReportMetrics
+): string[] {
+  const evidences: string[] = [];
+
+  switch (diagnosis) {
+    case 'PRE_LEITOR_1':
+      evidences.push(
+        `A criança identificou ${lettersReport.correct} de ${lettersReport.presented} letras apresentadas (${lettersReport.accuracy}% de precisão), com tempo médio de resposta de ${(lettersReport.averageReactionTimeMs / 1000).toFixed(1)}s.`
+      );
+      evidences.push(
+        'O número de letras reconhecidas permaneceu abaixo do limiar operacional de 10 acertos necessário para progressão consistente à leitura de palavras isoladas.'
+      );
+      if (lettersReport.noResponseCount > 0) {
+        evidences.push(
+          `Foram registradas ${lettersReport.noResponseCount} ausências de resposta no limite de 10 segundos por letra.`
+        );
+      }
+      break;
+
+    case 'PRE_LEITOR_2':
+      evidences.push(
+        `A criança identificou ${lettersReport.correct} letras corretamente (acima do limiar de 10 letras), demonstrando conhecimento consolidado do alfabeto básico.`
+      );
+      evidences.push(
+        `Na etapa de palavras isoladas, foram avaliadas ${wordsReport.presented} palavras, sem registro de decodificação autônoma correta (0 palavras lidas com correspondência plena).`
+      );
+      evidences.push(
+        'Esse padrão evidencia fase de transição alfabética, na qual o estudante já domina as letras, mas ainda não opera a síntese grafema-fonema em palavras inteiras.'
+      );
+      break;
+
+    case 'PRE_LEITOR_3':
+      evidences.push(
+        `A criança leu ${wordsReport.correct} palavras corretamente de um total de ${wordsReport.presented} apresentadas, obtendo precisão de ${wordsReport.accuracy}%.`
+      );
+      evidences.push(
+        `A velocidade foi de ${wordsReport.wordsPerMinute} palavras por minuto, com tempo médio de ${(wordsReport.averageDurationMs / 1000).toFixed(1)}s por palavra e ${wordsReport.silabationCount} ocorrências de silabação.`
+      );
+      evidences.push(
+        'O desempenho enquadra-se estritamente no intervalo de 1 a 10 palavras corretas, caracterizando decodificação inicial emergente sem automaticidade.'
+      );
+      break;
+
+    case 'LEITOR_INICIANTE_1':
+      evidences.push(
+        `A criança leu ${wordsReport.correct} palavras corretamente em palavras isoladas, alcançando uma taxa de ${wordsReport.wordsPerMinute} palavras corretas por minuto (faixa de 11 a 20 PCPM).`
+      );
+      evidences.push(
+        `Apresentou precisão de ${wordsReport.accuracy}%, com tempo médio de emissão de ${(wordsReport.averageDurationMs / 1000).toFixed(1)}s e ${wordsReport.pausesCount} pausas registradas.`
+      );
+      evidences.push(
+        'O perfil demonstra decodificação funcional consolidada para termos simples, com hesitações e silabação moderadas, compatível com Leitor Iniciante 1.'
+      );
+      break;
+
+    case 'LEITOR_INICIANTE_2':
+      evidences.push(
+        `A criança demonstrou ritmo inicial vigoroso em palavras isoladas (${wordsReport.wordsPerMinute} palavras corretas por minuto e ${wordsReport.correct} acertos).`
+      );
+      if (textReport?.evaluated) {
+        evidences.push(
+          `Na leitura contextual do texto ("${textReport.textTitle || 'Texto Narrativo'}"), alcançou taxa de ${textReport.wordsPerMinute} PCPM com ${textReport.accuracy}% de precisão.`
+        );
+        evidences.push(
+          `Embora supere o limiar de 21 palavras por minuto em lista, não atingiu simultaneamente os 65 PCPM e precisão superior a 90% no texto exigidos para Leitor Fluente. Mantém-se classificada como Leitor Iniciante 2.`
+        );
+      } else {
+        evidences.push(
+          'Atingiu taxa compatível com Leitor Iniciante 2 em lista isolada, mas a etapa textual não evidenciou os critérios cumulativos de fluência plena.'
+        );
+      }
+      break;
+
+    case 'LEITOR_FLUENTE':
+      if (textReport?.evaluated) {
+        evidences.push(
+          `A criança leu ${textReport.wordsCorrect} palavras corretamente no texto com taxa de ${textReport.wordsPerMinute} palavras corretas por minuto (critério mínimo de 65 PCPM superado).`
+        );
+        evidences.push(
+          `Obteve precisão textual de ${textReport.accuracy}% (critério superior a 90% atendido), com leitura contínua, baixa frequência de silabação e respeito funcional à pontuação.`
+        );
+      }
+      if (phrasesReport?.evaluated) {
+        evidences.push(
+          `Na etapa confirmatória de frases, concluiu ${phrasesReport.completed} de ${phrasesReport.presented} estruturas sintáticas com prosódia adequada (índice de expressividade de ${phrasesReport.prosodyScore}/100).`
+        );
+      }
+      evidences.push(
+        'O conjunto dos dados atende simultaneamente aos requisitos de velocidade, precisão, automaticidade e prosódia, sustentando de forma inequívoca o nível Leitor Fluente.'
+      );
+      break;
+  }
+
+  return evidences;
+}
+
+/**
+ * Gera o Resumo Executivo para leitura rápida do Supervisor (Regra 20)
+ */
+export function generateExecutiveSummary(
+  diagnosis: PedagogicalDiagnosis,
+  lettersReport: LettersReportMetrics,
+  wordsReport: WordsReportMetrics,
+  textReport?: TextReportMetrics,
+  _phrasesReport?: PhrasesReportMetrics
+): ExecutiveSummary {
+  switch (diagnosis) {
+    case 'PRE_LEITOR_1':
+      return {
+        currentLevelTitle: 'Pré-Leitor 1 (Identificação Inicial de Letras)',
+        currentLevelCategory: 'Pré-Leitor',
+        whatChildCanDo: `Identifica algumas letras isoladas (${lettersReport.correct} identificadas corretamente).`,
+        mainDifficulties: 'Dificuldade no reconhecimento estável de grafemas e distinção de letras com traçado ou sons semelhantes.',
+        supportingData: `${lettersReport.correct} de ${lettersReport.presented} letras corretas (${lettersReport.accuracy}% de precisão).`,
+        skillsNeedingAttention: ['Reconhecimento das letras do alfabeto', 'Correspondência grafema-fonema', 'Consciência fonológica inicial'],
+        readingQualitySummary: 'Reconhecimento de letras em fase inicial, com necessidade de mediação frequente.',
+        aspectsToWorkOn: ['Prática lúdica de nomeação rápida de letras', 'Associação entre som e grafema com apoio multissensorial']
+      };
+
+    case 'PRE_LEITOR_2':
+      return {
+        currentLevelTitle: 'Pré-Leitor 2 (Domínio de Letras em Transição)',
+        currentLevelCategory: 'Pré-Leitor',
+        whatChildCanDo: `Identifica 10 ou mais letras com segurança (${lettersReport.correct} letras reconhecidas).`,
+        mainDifficulties: 'Síntese das letras para formação e leitura autônoma de palavras completas.',
+        supportingData: `${lettersReport.correct} letras corretas, porém sem leitura autônoma de palavras isoladas na etapa 2.`,
+        skillsNeedingAttention: ['Síntese fonêmica', 'Leitura de sílabas canônicas (CV)', 'Fusão auditiva'],
+        readingQualitySummary: 'Identifica grafemas com segurança, mas ainda não decodifica palavras isoladas.',
+        aspectsToWorkOn: ['Jogos de formação de sílabas simples', 'Leitura de palavras dissílabas com apoio de figuras']
+      };
+
+    case 'PRE_LEITOR_3':
+      return {
+        currentLevelTitle: 'Pré-Leitor 3 (Decodificação Inicial de Palavras)',
+        currentLevelCategory: 'Pré-Leitor',
+        whatChildCanDo: `Lê palavras dissílabas simples com decodificação emergente (${wordsReport.correct} palavras corretas).`,
+        mainDifficulties: 'Silabação excessiva, tempo de reação elevado e hesitação em sílabas não canônicas.',
+        supportingData: `${wordsReport.correct} palavras corretas (intervalo de 1 a 10), precisão de ${wordsReport.accuracy}%.`,
+        skillsNeedingAttention: ['Agilidade de decodificação', 'Redução da silabação', 'Ampliação do vocabulário visual'],
+        readingQualitySummary: 'Decodificação inicial palavra por palavra, com ritmo pausado e silabado.',
+        aspectsToWorkOn: ['Leitura repetida de listas de palavras familiares', 'Treino de automaticidade em sílabas canônicas']
+      };
+
+    case 'LEITOR_INICIANTE_1':
+      return {
+        currentLevelTitle: 'Leitor Iniciante 1 (Decodificação Intermediária)',
+        currentLevelCategory: 'Leitor Iniciante',
+        whatChildCanDo: `Lê palavras isoladas com taxa entre 11 e 20 palavras por minuto (${wordsReport.wordsPerMinute} PCPM).`,
+        mainDifficulties: 'Pausas frequentes em dígrafos e encontros consonantais, ritmo ainda fragmentado.',
+        supportingData: `${wordsReport.wordsPerMinute} PCPM, ${wordsReport.correct} acertos, precisão de ${wordsReport.accuracy}%.`,
+        skillsNeedingAttention: ['Fluência em palavras complexas', 'Automaticidade de dígrafos (CH, LH, NH)', 'Encontros com R e L'],
+        readingQualitySummary: 'Leitura funcional com pausas e autocorreções, decodificação em consolidação.',
+        aspectsToWorkOn: ['Atividades de leitura repetida cronometrada', 'Exercícios com encontros consonantais e dígrafos']
+      };
+
+    case 'LEITOR_INICIANTE_2':
+      return {
+        currentLevelTitle: 'Leitor Iniciante 2 (Decodificação Avançada sem Fluência Plena)',
+        currentLevelCategory: 'Leitor Iniciante',
+        whatChildCanDo: `Lê 21 ou mais palavras isoladas por minuto (${wordsReport.wordsPerMinute} PCPM em lista).`,
+        mainDifficulties: 'Queda de velocidade ou precisão ao ler textos em contexto (não atingiu 65 PCPM ou 90% no texto).',
+        supportingData: `Palavras isoladas: ${wordsReport.wordsPerMinute} PCPM; Texto: ${textReport?.wordsPerMinute || 0} PCPM com ${textReport?.accuracy || 0}% de precisão.`,
+        skillsNeedingAttention: ['Leitura contextual contínua', 'Respeito à pontuação', 'Prosódia e ritmo narrativo'],
+        readingQualitySummary: 'Excelente em palavras isoladas, mas requer desenvolvimento da fluência e prosódia em texto corrido.',
+        aspectsToWorkOn: ['Leitura compartilhada e expressiva de textos curtos', 'Exercícios de entonação e pontuação']
+      };
+
+    case 'LEITOR_FLUENTE':
+      return {
+        currentLevelTitle: 'Leitor Fluente (Fluência Consolidada em Texto)',
+        currentLevelCategory: 'Leitor Fluente',
+        whatChildCanDo: `Lê textos com velocidade superior a 65 PCPM (${textReport?.wordsPerMinute || 65} PCPM) e precisão > 90%.`,
+        mainDifficulties: 'Manter a expressividade em textos extensos com estruturas sintáticas altamente complexas.',
+        supportingData: `Texto: ${textReport?.wordsPerMinute || 65} PCPM, ${textReport?.accuracy || 95}% de precisão, prosódia confirmada em frases.`,
+        skillsNeedingAttention: ['Interpretação e inferência textual', 'Expressividade dramática', 'Vocabulário enriquecido'],
+        readingQualitySummary: 'Leitura contínua, rápida e expressiva, com respeito à pontuação e adequada automaticidade.',
+        aspectsToWorkOn: ['Leituras desafiadoras de múltiplos gêneros textuais', 'Projetos de contação de histórias']
+      };
+  }
+}
+

@@ -89,4 +89,19 @@ describe('Banco de Questões e Randomizador (questionBank)', () => {
     // A probabilidade de duas sequências de 15 itens serem idênticas é insignificante (1/15!)
     expect(run1).not.toBe(run2);
   });
+
+  it('deve gerar bateria sequencial padrão de exatamente 30 itens (10 simples, 10 médias, 6 complexas e 4 frases)', () => {
+    const selected = selectEvaluationItems('complete', 10, 30);
+    expect(selected.length).toBe(30);
+
+    const levels = selected.map(s => s.level);
+    // 10 primeiros: Nível 1 (Simples)
+    expect(levels.slice(0, 10).every(l => l === 1)).toBe(true);
+    // 10 seguintes: Nível 2 (Médias)
+    expect(levels.slice(10, 20).every(l => l === 2)).toBe(true);
+    // 6 seguintes: Nível 3 (Complexas)
+    expect(levels.slice(20, 26).every(l => l === 3)).toBe(true);
+    // 4 finais: Nível 4 (Frases Curtas)
+    expect(levels.slice(26, 30).every(l => l === 4)).toBe(true);
+  });
 });

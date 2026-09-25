@@ -1,6 +1,16 @@
 export type DifficultyLevel = 1 | 2 | 3 | 4;
 
-export type ItemType = 'word' | 'phrase';
+export type PedagogicalLevel = 'PRE_LEITOR' | 'LEITOR';
+
+export type PedagogicalDiagnosis =
+  | 'PRE_LEITOR_1'        // Não identificou letras de maneira suficiente (< 10 letras)
+  | 'PRE_LEITOR_2'        // Identificou 10+ letras, mas não lê palavras (< 1 palavra correta)
+  | 'PRE_LEITOR_3'        // Leu de 1 a 10 palavras isoladas
+  | 'LEITOR_INICIANTE_1'  // Leu de 11 a 20 palavras isoladas em 60s
+  | 'LEITOR_INICIANTE_2'  // Leu 21+ palavras em 60s, mas não atingiu fluência no texto
+  | 'LEITOR_FLUENTE';     // >= 65 PCPM no texto, > 90% acurácia, pontuação e prosódia
+
+export type ItemType = 'letter' | 'word' | 'text' | 'phrase' | 'syllable';
 
 export type SyllableStructure =
   | 'canonical_cv_cv'         // Dissílabas simples (ex: BOLA, PATO)
@@ -31,13 +41,17 @@ export interface QuestionItem {
   level: DifficultyLevel;
   type: ItemType;
   syllablesCount: number;
-  syllableStructure: SyllableStructure;
+  syllableStructure: SyllableStructure | string;
   targetPhonemes?: string[];
-  category: SemanticCategory;
+  category: SemanticCategory | string;
+  difficulty?: number;
+  active?: boolean;
+  order?: number;
 }
 
 export interface LevelInfo {
   level: DifficultyLevel;
+  pedagogicalKey: PedagogicalLevel;
   title: string;
   subtitle: string;
   description: string;

@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+}
+
+enum Shift {
+  MANHA
+  TARDE
+  INTEGRAL
+  NOITE
+}
+
+enum QuestionLevel {
+  PRE_LEITOR  // Nível 1 - Pré-Leitor
+  LEITOR      // Nível 2 - Leitor
+}
+
+enum ItemType {
+  LETTER
+  SYLLABLE
+  WORD
+  PHRASE
+}
+
+enum RecognitionStatus {
+  CORRETO
+  POSSIVELMENTE_CORRETO
+  INCORRETO
+  SEM_RESPOSTA
+  NAO_RECONHECIDO
+  ERRO_TECNICO
+}
+
+enum EvaluationStatus {
+  COMPLETED
+  PARTIAL
+  CANCELLED
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  role         Role        @default(SUPERVISOR)
+  active       Boolean     @default(true)
+  lastLoginAt  DateTime?   @map("last_login_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  evaluations  EvaluationSession[]
+  auditLogs    AuditLog[]
+  settingsUpdated PedagogicalSetting[]
+
+  @@map("users")
+}
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  code      String?  @unique // Código INEP ou identificador municipal
+  city      String
+  state     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  classes     SchoolClass[]
+  students    Student[]
+  evaluations EvaluationSession[]
+
+  @@map("schools")
+}
+
+model SchoolClass {
+  id         String   @id @default(uuid())
+  schoolId   String   @map("school_id")
+  name       String   // Ex: "Turma 101", "1º Ano B"
+  gradeYear  String   @map("grade_year") // Ex: "1º Ano", "2º Ano", "Pré II"
+  schoolYear Int      @map("school_year") // Ex: 2026
+  shift      Shift    @default(MANHA)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students    Student[]
+  evaluations EvaluationSession[]
+
+  @@map("classes")
+}
+
+model Student {
+  id                 String    @id @default(uuid())
+  schoolId           String    @map("school_id")
+  classId            String    @map("class_id")
+  name               String
+  birthDate          DateTime? @map("birth_date")
+  registrationNumber String?   @map("registration_number") // Matrícula escolar
+  notes              String?   @db.Text
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class       SchoolClass         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  evaluations EvaluationSession[]
+
+  @@map("students")
+}
+
+model Question {
+  id                String        @id @default(uuid())
+  text              String
+  level             QuestionLevel @default(PRE_LEITOR)
+  type              ItemType      @default(WORD)
+  syllablesCount    Int           @default(2) @map("syllables_count")
+  syllableStructure String        @map("syllable_structure") // Ex: "canonical_cv_cv", "complex_cvc", etc.
+  category          String        // Ex: "animais", "alimentos", "objetos", etc.
+  difficulty        Int           @default(1) // 1 a 5
+  targetPhonemes    String[]      @default([]) @map("target_phonemes")
+  active            Boolean       @default(true)
+  order             Int           @default(0)
+  version           Int           @default(1)
+  metadata          Json?
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  evaluationItems   EvaluationItem[]
+
+  @@map("questions")
+}
+
+model EvaluationCriteria {
+  id               String   @id @default(uuid())
+  version          String   @unique // Ex: "2026.1"
+  wordDurationSec  Int      @default(10) @map("word_duration_sec")
+  toleranceSetting String   @default("standard") @map("tolerance_setting")
+  active           Boolean  @default(true)
+  rulesJson        Json     @map("rules_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  createdByUserId  String?  @map("created_by_user_id")
+
+  evaluations      EvaluationSession[]
+
+  @@map("evaluation_criteria")
+}
+
+model EvaluationSession {
+  id                    String           @id @default(uuid())
+  studentId             String           @map("student_id")
+  evaluatorId           String           @map("evaluator_id")
+  schoolId              String           @map("school_id")
+  classId               String           @map("class_id")
+  criteriaVersion       String           @map("criteria_version")
+  mode                  String           @default("complete") // "complete", "pre_leitor", "leitor"
+  status                EvaluationStatus @default(COMPLETED)
+  totalItems            Int              @map("total_items")
+  correctCount          Int              @map("correct_count")
+  possibleCount         Int              @map("possible_count")
+  incorrectCount        Int              @map("incorrect_count")
+  noResponseCount       Int              @map("no_response_count")
+  unrecognizedCount     Int              @map("unrecognized_count")
+  accuracyPercentage    Float            @map("accuracy_percentage")
+  averageResponseTimeMs Int              @map("average_response_time_ms")
+  summaryJson           Json?            @map("summary_json")
+  notes                 String?          @db.Text
+  syncStatus            String           @default("synced") @map("sync_status") // "synced", "pending"
+  clientTimestamp       DateTime?        @map("client_timestamp")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  completedAt           DateTime?        @map("completed_at")
+
+  student  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  evaluator User              @relation(fields: [evaluatorId], references: [id])
+  school   School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class    SchoolClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  criteria EvaluationCriteria @relation(fields: [criteriaVersion], references: [version])
+  items    EvaluationItem[]
+
+  @@map("evaluation_sessions")
+}
+
+model EvaluationItem {
+  id                   String            @id @default(uuid())
+  sessionId            String            @map("session_id")
+  questionId           String?           @map("question_id")
+  targetText           String            @map("target_text")
+  level                QuestionLevel     @default(PRE_LEITOR)
+  itemType             ItemType          @default(WORD) @map("item_type")
+  syllableStructure    String            @map("syllable_structure")
+  category             String
+  transcript           String
+  normalizedTranscript String            @map("normalized_transcript")
+  confidence           Float             @default(1.0)
+  responseTimeMs       Int               @map("response_time_ms")
+  availableTimeMs      Int               @default(10000) @map("available_time_ms")
+  speechStartMs        Int?              @map("speech_start_ms")
+  speechEndMs          Int?              @map("speech_end_ms")
+  status               RecognitionStatus @default(CORRETO)
+  similarity           Float?
+  numberOfAttempts     Int               @default(1) @map("number_of_attempts")
+  recognitionQuality   String?           @map("recognition_quality") // "good", "poor", "noisy"
+  provider             String            @default("browser-web-speech")
+  observedError        String?           @map("observed_error")
+  phonemeFindings      String[]          @default([]) @map("phoneme_findings")
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  session  EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question?         @relation(fields: [questionId], references: [id], onDelete: SetNull)
+
+  @@map("evaluation_items")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String   // "CREATE", "UPDATE", "DELETE", "LOGIN", "EXPORT"
+  entity     String   // "User", "School", "Student", "Question", "Criteria", etc.
+  entityId   String?  @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model PedagogicalSetting {
+  key             String   @id
+  value           Json
+  description     String?
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  updatedByUserId String?  @map("updated_by_user_id")
+
+  updatedBy User? @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("pedagogical_settings")
+}

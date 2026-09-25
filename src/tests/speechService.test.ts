@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { deduplicateSpeechTranscript, speechService } from '../services/speechService';
+import { deduplicateSpeechTranscript, speechService, BrowserWebSpeechProvider } from '../services/speechService';
 
-describe('Serviço de Reconhecimento de Fala (speechService)', () => {
+describe('Serviço de Reconhecimento de Fala (SpeechRecognitionProvider)', () => {
   describe('deduplicateSpeechTranscript', () => {
     it('deve remover palavras idênticas consecutivas geradas pelo buffer móvel', () => {
       expect(deduplicateSpeechTranscript('BOLA BOLA')).toBe('BOLA');
@@ -24,31 +24,40 @@ describe('Serviço de Reconhecimento de Fala (speechService)', () => {
     });
   });
 
-  describe('Sessão Contínua e Ciclo de Vida de Baixa Latência', () => {
+  describe('Interface SpeechRecognitionProvider e Métricas Temporais', () => {
     beforeEach(() => {
-      speechService.stopEvaluationSession();
+      speechService.stopSession();
     });
 
-    it('deve expor métodos de sessão contínua sem quebrar em ambientes sem SpeechRecognition', () => {
-      expect(typeof speechService.startEvaluationSession).toBe('function');
+    it('deve instanciar a classe com id oficial browser-web-speech', () => {
+      expect(speechService.id).toBe('browser-web-speech');
+      const customProvider = new BrowserWebSpeechProvider();
+      expect(customProvider.id).toBe('browser-web-speech');
+    });
+
+    it('deve expor métodos de sessão contínua sem quebrar em ambientes de teste', () => {
+      expect(typeof speechService.startSession).toBe('function');
       expect(typeof speechService.prepareNextItem).toBe('function');
       expect(typeof speechService.consumeItemResult).toBe('function');
-      expect(typeof speechService.stopEvaluationSession).toBe('function');
+      expect(typeof speechService.stopSession).toBe('function');
     });
 
-    it('consumeItemResult deve retornar transcrição e métricas zeradas quando não há fala capturada', () => {
-      speechService.prepareNextItem({});
+    it('consumeItemResult deve retornar métricas completas com janela de 10s', () => {
+      speechService.prepareNextItem({ availableTimeMs: 10000 });
       const result = speechService.consumeItemResult();
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         transcript: '',
         confidence: 1.0,
-        durationMs: expect.any(Number)
+        availableTimeMs: 10000,
+        provider: 'browser-web-speech',
+        numberOfAttempts: expect.any(Number),
+        responseTimeMs: expect.any(Number)
       });
     });
 
-    it('stopEvaluationSession deve limpar o estado da sessão de forma segura', () => {
-      speechService.stopEvaluationSession();
+    it('stopSession deve limpar o estado de escuta com segurança', () => {
+      speechService.stopSession();
       expect(speechService.getIsListening()).toBe(false);
     });
   });

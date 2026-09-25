@@ -144,6 +144,7 @@ describe('Motor de Análise Fonética e Normalização (analysisEngine)', () => 
           transcript: 'bola',
           status: 'CORRETO',
           responseTimeMs: 1200,
+          availableTimeMs: 10000,
           confidence: 1.0
         }
       ];
@@ -165,6 +166,7 @@ describe('Motor de Análise Fonética e Normalização (analysisEngine)', () => 
           transcript: 'tuva',
           status: 'INCORRETO',
           responseTimeMs: 2500,
+          availableTimeMs: 10000,
           confidence: 0.8
         }
       ];
@@ -186,6 +188,7 @@ describe('Motor de Análise Fonética e Normalização (analysisEngine)', () => 
           transcript: 'pato',
           status: 'INCORRETO',
           responseTimeMs: 2200,
+          availableTimeMs: 10000,
           confidence: 0.9
         }
       ];

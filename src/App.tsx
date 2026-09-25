@@ -5,51 +5,52 @@ import { AudioPermissionModal } from './components/common/AudioPermissionModal';
 import { HomeScreen } from './components/home/HomeScreen';
 import { PreparationScreen } from './components/evaluation/PreparationScreen';
 import { TestingScreen } from './components/evaluation/TestingScreen';
+import { EnvironmentCheckScreen } from './components/evaluation/EnvironmentCheckScreen';
 import { ResultDashboard } from './components/results/ResultDashboard';
 import { HistoryView } from './components/history/HistoryView';
-import { ChildManagementModal } from './components/children/ChildManagementModal';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { StudentSelectionModal } from './components/children/StudentSelectionModal';
+import { LoginModal } from './components/auth/LoginModal';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { InstallAppModal } from './components/common/InstallAppModal';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useEvaluationEngine } from './hooks/useEvaluationEngine';
+import { Student } from './types/school';
 import { ChildProfile } from './types/child';
 import { DifficultyLevel, QuestionItem } from './types/question';
 import { EvaluationMode, EvaluationSession } from './types/evaluation';
 import { AppSettings, DEFAULT_SETTINGS } from './types/settings';
-import { selectEvaluationItems } from './data/questionBank';
 import { getStoredSettings, saveStoredSettings } from './services/db';
+import { repository } from './services/repository';
 import { speechService } from './services/speechService';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-type ViewMode = 'home' | 'evaluating' | 'result' | 'history';
+type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
 
-export const App: React.FC = () => {
+const MainApp: React.FC = () => {
+  const { user } = useAuth();
   const [view, setView] = useState<ViewMode>('home');
-  const [activeChild, setActiveChild] = useState<ChildProfile | null>(null);
+  const [activeStudent, setActiveStudent] = useState<Student | ChildProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [selectedItems, setSelectedItems] = useState<QuestionItem[]>([]);
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>('complete');
   const [activeSession, setActiveSession] = useState<EvaluationSession | null>(null);
 
   // Modais
-  const [isChildModalOpen, setIsChildModalOpen] = useState<boolean>(false);
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState<boolean>(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isAudioPermModalOpen, setIsAudioPermModalOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
-  const [pendingEvaluationAction, setPendingEvaluationAction] = useState<(() => void) | null>(null);
 
-  // PWA Hook
+  // PWA
   const { canInstall, isInstalled, isOnline, triggerInstall } = usePWAInstall();
   const [showInstallBanner, setShowInstallBanner] = useState<boolean>(true);
 
-  const handleOpenInstallApp = () => {
-    setIsInstallModalOpen(true);
-  };
-
-  // Carregar configurações do IndexedDB
+  // Carregar configurações locais
   useEffect(() => {
     getStoredSettings().then((loaded) => {
       setSettings(loaded);
-      // Aplica classe de tamanho de fonte no body
       document.body.className = `font-${loaded.fontSize}`;
     });
   }, []);
@@ -60,58 +61,52 @@ export const App: React.FC = () => {
     document.body.className = `font-${next.fontSize}`;
   };
 
-  // Motor de Avaliação
+  // Motor de Avaliação com janela de 10s e registro preciso
   const engine = useEvaluationEngine({
     items: selectedItems,
     mode: evaluationMode,
     settings,
-    activeChild,
+    activeStudent,
+    evaluatorId: user?.id,
+    evaluatorName: user?.name,
     onFinished: (session) => {
       setActiveSession(session);
       setView('result');
     }
   });
 
-  // Função auxiliar para conferir microfone antes de iniciar
-  const ensureMicrophoneAndExecute = async (action: () => void) => {
-    // Se a Web Speech API não for suportada, informa com transparência
+  // Preparar itens e ir para verificação do ambiente
+  const prepareEvaluationFlow = async (mode: EvaluationMode) => {
     if (!speechService.isSupported()) {
       alert(
-        'Atenção: Seu navegador atual não oferece suporte nativo à Web Speech API.\nRecomendamos o uso do Google Chrome, Microsoft Edge, Samsung Internet ou Safari para reconhecimento de voz.'
+        'Atenção: Seu navegador atual não possui suporte à Web Speech API.\nRecomendamos Google Chrome, Microsoft Edge ou Safari.'
       );
     }
 
-    // Tenta obter permissão direta ou abre modal explicativo
-    const hasPerm = await speechService.requestMicrophonePermission();
-    if (hasPerm) {
-      action();
-    } else {
-      setPendingEvaluationAction(() => action);
-      setIsAudioPermModalOpen(true);
+    const items = await repository.getEvaluationQuestions(mode, settings.itemsPerLevel);
+    if (!items || items.length === 0) {
+      alert('Nenhum item pedagógico disponível para este nível no momento.');
+      return;
     }
+
+    setSelectedItems(items);
+    setEvaluationMode(mode);
+    setView('environment_check');
   };
 
-  // Iniciar Avaliação Completa (Níveis 1 -> 2 -> 3 -> 4)
   const handleStartCompleteEvaluation = () => {
-    ensureMicrophoneAndExecute(() => {
-      const items = selectEvaluationItems('complete', settings.itemsPerLevel);
-      setSelectedItems(items);
-      setEvaluationMode('complete');
-      setView('evaluating');
-    });
+    prepareEvaluationFlow('complete');
   };
 
-  // Iniciar Avaliação de Nível Específico
   const handleStartLevelEvaluation = (lvl: DifficultyLevel) => {
-    ensureMicrophoneAndExecute(() => {
-      const items = selectEvaluationItems(lvl, settings.itemsPerLevel);
-      setSelectedItems(items);
-      setEvaluationMode(lvl);
-      setView('evaluating');
-    });
+    prepareEvaluationFlow(lvl);
   };
 
-  // Dispara o motor assim que selectedItems é montado e a view vira 'evaluating'
+  const handleStartAfterEnvironmentCheck = () => {
+    setView('evaluating');
+  };
+
+  // Dispara o motor quando transita para 'evaluating'
   useEffect(() => {
     if (view === 'evaluating' && selectedItems.length > 0 && engine.phase === 'idle') {
       engine.startEvaluation();
@@ -119,7 +114,7 @@ export const App: React.FC = () => {
   }, [view, selectedItems, engine.phase]);
 
   const handleCancelEvaluation = () => {
-    if (confirm('Deseja interromper a avaliação atual? Os itens já respondidos não serão computados.')) {
+    if (confirm('Deseja interromper a avaliação atual?')) {
       engine.cancelEvaluation();
       setView('home');
     }
@@ -127,39 +122,49 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* Banner de Instalação PWA se elegível */}
+      {/* Banner PWA se aplicável */}
       <PWAInstallBanner
         canInstall={canInstall && showInstallBanner && view === 'home'}
-        onInstall={handleOpenInstallApp}
+        onInstall={() => setIsInstallModalOpen(true)}
         onDismiss={() => setShowInstallBanner(false)}
       />
 
-      {/* Cabeçalho visível em quase todas as telas (exceto durante o foco da avaliação) */}
+      {/* Header visível fora da tela de foco infantil */}
       {view !== 'evaluating' && (
         <Header
-          activeChild={activeChild}
+          activeStudent={activeStudent}
           currentView={view}
           onGoHome={() => setView('home')}
-          onOpenChildModal={() => setIsChildModalOpen(true)}
+          onOpenStudentModal={() => setIsStudentModalOpen(true)}
           onOpenHistory={() => setView('history')}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenAdmin={() => setView('admin')}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
           canInstallPWA={true}
-          onInstallPWA={handleOpenInstallApp}
+          onInstallPWA={() => setIsInstallModalOpen(true)}
           isOnline={isOnline}
         />
       )}
 
-      {/* Área Principal de Conteúdo */}
+      {/* Conteúdo Principal */}
       <main className="main-content">
         {view === 'home' && (
           <HomeScreen
-            activeChild={activeChild}
+            activeStudent={activeStudent}
             onStartCompleteEvaluation={handleStartCompleteEvaluation}
             onStartLevelEvaluation={handleStartLevelEvaluation}
             onOpenHistory={() => setView('history')}
             onOpenSettings={() => setIsSettingsModalOpen(true)}
-            onOpenChildModal={() => setIsChildModalOpen(true)}
-            onInstallApp={handleOpenInstallApp}
+            onOpenStudentModal={() => setIsStudentModalOpen(true)}
+            onInstallApp={() => setIsInstallModalOpen(true)}
+          />
+        )}
+
+        {view === 'environment_check' && (
+          <EnvironmentCheckScreen
+            childName={activeStudent?.name}
+            onReadyToStart={handleStartAfterEnvironmentCheck}
+            onCancel={() => setView('home')}
           />
         )}
 
@@ -177,6 +182,9 @@ export const App: React.FC = () => {
                 item={engine.currentItem}
                 currentIndex={engine.currentIndex}
                 totalItems={engine.totalItems}
+                currentStage={engine.currentStage}
+                globalElapsedSeconds={engine.globalElapsedSeconds}
+                globalTimeLimitSec={engine.globalTimeLimitSec}
                 timeRemainingSec={engine.timeRemainingSec}
                 totalDurationSec={engine.totalItemDurationSec}
                 isMicListening={engine.isMicListening}
@@ -184,6 +192,7 @@ export const App: React.FC = () => {
                 isSuccessFeedback={engine.isSuccessFeedback}
                 onCancel={handleCancelEvaluation}
                 onSkip={engine.skipCurrentItem}
+                onMarkResult={settings.educatorManualControls ? engine.markCurrentItemResult : undefined}
               />
             )}
           </>
@@ -194,7 +203,7 @@ export const App: React.FC = () => {
             session={activeSession}
             onRestart={() => setView('home')}
             onViewHistory={() => setView('history')}
-            onInstallApp={handleOpenInstallApp}
+            onInstallApp={() => setIsInstallModalOpen(true)}
           />
         )}
 
@@ -207,14 +216,24 @@ export const App: React.FC = () => {
             }}
           />
         )}
+
+        {view === 'admin' && (
+          <AdminDashboard onBack={() => setView('home')} />
+        )}
       </main>
 
       {/* Modais Globais */}
-      <ChildManagementModal
-        isOpen={isChildModalOpen}
-        activeChild={activeChild}
-        onClose={() => setIsChildModalOpen(false)}
-        onSelectChild={(child) => setActiveChild(child)}
+      <StudentSelectionModal
+        isOpen={isStudentModalOpen}
+        activeStudent={activeStudent as Student | null}
+        onClose={() => setIsStudentModalOpen(false)}
+        onSelectStudent={(st) => setActiveStudent(st)}
+      />
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={() => setView('admin')}
       />
 
       <SettingsModal
@@ -227,16 +246,9 @@ export const App: React.FC = () => {
       <AudioPermissionModal
         isOpen={isAudioPermModalOpen}
         onClose={() => setIsAudioPermModalOpen(false)}
-        onGranted={() => {
-          setIsAudioPermModalOpen(false);
-          if (pendingEvaluationAction) {
-            pendingEvaluationAction();
-            setPendingEvaluationAction(null);
-          }
-        }}
+        onGranted={() => setIsAudioPermModalOpen(false)}
       />
 
-      {/* Modal de Instalação no Celular */}
       <InstallAppModal
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
@@ -245,5 +257,13 @@ export const App: React.FC = () => {
         isInstalled={isInstalled}
       />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 };
