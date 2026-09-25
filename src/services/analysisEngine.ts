@@ -128,32 +128,32 @@ export function compareSpeech(
 }
 
 const LETTER_VARIANTS: Record<string, string[]> = {
-  A: ['A', 'AH', 'HA', 'LETRA A', 'AVIAO', 'ABELHA', 'AMOR', 'AZUL', 'AGUA', 'AMORA', 'ANEL'],
+  A: ['A', 'AH', 'HA', 'LETRA A', 'AVIAO', 'ABELHA', 'AMOR', 'AZUL', 'AGUA', 'AMORA', 'ANEL', 'HÁ', 'AÍ'],
   B: ['B', 'BE', 'BA', 'BI', 'BO', 'BU', 'BOLA', 'BOLO', 'BEM', 'BEBE', 'BALA', 'BARCO', 'LETRA B', 'LETRA BE', 'VER', 'VE', 'BOM', 'BULE', 'BICO'],
   C: ['C', 'CE', 'SE', 'CA', 'CO', 'CU', 'CI', 'CASA', 'COCO', 'VOCE', 'SER', 'SEI', 'CARRO', 'LETRA C', 'LETRA CE', 'CEM', 'SEM', 'COPO', 'COLA'],
-  D: ['D', 'DE', 'DA', 'DI', 'DO', 'DU', 'DADO', 'DIA', 'DOCE', 'DEDO', 'LETRA D', 'LETRA DE', 'DEZ', 'DONA'],
+  D: ['D', 'DE', 'DA', 'DI', 'DO', 'DU', 'DADO', 'DIA', 'DOCE', 'DEDO', 'LETRA D', 'LETRA DE', 'DEZ', 'DONA', 'DER'],
   E: ['E', 'EH', 'ELE', 'ESCOLA', 'ESTRELA', 'ELEFANTE', 'ESCADA', 'LETRA E', 'EMA', 'ELA'],
-  F: ['F', 'EFE', 'FE', 'FA', 'FI', 'FO', 'FU', 'EF', 'FADA', 'FOGO', 'FOI', 'FOLHA', 'FACA', 'LETRA F', 'LETRA EFE', 'FITA', 'FOCA'],
+  F: ['F', 'EFE', 'FE', 'FA', 'FI', 'FO', 'FU', 'EF', 'FADA', 'FOGO', 'FOI', 'FOLHA', 'FACA', 'LETRA F', 'LETRA EFE', 'FITA', 'FOCA', 'EFI'],
   G: ['G', 'GE', 'GUE', 'GA', 'GI', 'GO', 'GU', 'GATO', 'GOTA', 'GIRAFA', 'GOIABA', 'LETRA G', 'LETRA GE', 'GALO', 'GEMA'],
-  H: ['H', 'AGA', 'HAGA', 'HORA', 'HELICOPTERO', 'HOJE', 'HOMEM', 'LETRA H', 'LETRA AGA', 'HARPA', 'HORTA'],
+  H: ['H', 'AGA', 'HAGA', 'HORA', 'HELICOPTERO', 'HOJE', 'HOMEM', 'LETRA H', 'LETRA AGA', 'HARPA', 'HORTA', 'A GA', 'AH GA', 'AGÁ', 'HAGÁ'],
   I: ['I', 'IH', 'AI', 'IGREJA', 'ILHA', 'INDIO', 'IGLU', 'LETRA I', 'IOIO', 'IRA'],
   J: ['J', 'JOTA', 'JA', 'JE', 'JI', 'JO', 'JU', 'JACARE', 'JANELA', 'JOGO', 'JIPE', 'LETRA J', 'LETRA JOTA', 'JUBA'],
   K: ['K', 'CA', 'KA', 'KI', 'KIWI', 'KART', 'LETRA K'],
-  L: ['L', 'ELE', 'LE', 'LA', 'LI', 'LO', 'LU', 'EL', 'LUA', 'LATA', 'LEAO', 'LIVRO', 'LETRA L', 'LETRA ELE', 'LOBO', 'LUVA'],
-  M: ['M', 'EME', 'ME', 'MA', 'MI', 'MO', 'MU', 'EM', 'HUM', 'MACACO', 'MAE', 'MALA', 'MESA', 'MOTO', 'LETRA M', 'LETRA EME', 'MOLA', 'MURO'],
-  N: ['N', 'ENE', 'NE', 'NA', 'NI', 'NO', 'NU', 'EN', 'NAVIO', 'NUVEM', 'NINHO', 'NOITE', 'LETRA N', 'LETRA ENE', 'NOVE', 'NADA'],
+  L: ['L', 'ELE', 'LE', 'LA', 'LI', 'LO', 'LU', 'EL', 'LUA', 'LATA', 'LEAO', 'LIVRO', 'LETRA L', 'LETRA ELE', 'LOBO', 'LUVA', 'ELI'],
+  M: ['M', 'EME', 'ME', 'MA', 'MI', 'MO', 'MU', 'EM', 'HUM', 'MACACO', 'MAE', 'MALA', 'MESA', 'MOTO', 'LETRA M', 'LETRA EME', 'MOLA', 'MURO', 'EMI'],
+  N: ['N', 'ENE', 'NE', 'NA', 'NI', 'NO', 'NU', 'EN', 'NAVIO', 'NUVEM', 'NINHO', 'NOITE', 'LETRA N', 'LETRA ENE', 'NOVE', 'NADA', 'ENI'],
   O: ['O', 'OH', 'OU', 'OVO', 'OLHO', 'ONCA', 'ORELHA', 'LETRA O', 'ONIBUS', 'OURO', 'OCA'],
   P: ['P', 'PE', 'PA', 'PI', 'PO', 'PU', 'PATO', 'PIPOCA', 'PANELA', 'PEIXE', 'PIPA', 'LETRA P', 'LETRA PE', 'PORTA', 'PUMA'],
   Q: ['Q', 'QUE', 'QUA', 'QUI', 'QUEIJO', 'QUATI', 'QUADRO', 'LETRA Q', 'LETRA QUE', 'QUEDA'],
-  R: ['R', 'ERRE', 'RE', 'RA', 'RI', 'RO', 'RU', 'AR', 'RATO', 'RUA', 'RELOGIO', 'RIO', 'ROBO', 'LETRA R', 'LETRA ERRE', 'RODA', 'REDE'],
-  S: ['S', 'ESSE', 'SE', 'SA', 'SI', 'SO', 'SU', 'ES', 'SAPO', 'SOL', 'SOPA', 'SINO', 'SUCO', 'LETRA S', 'LETRA ESSE', 'SACO', 'SALA'],
-  T: ['T', 'TE', 'TA', 'TI', 'TO', 'TU', 'TATU', 'TREM', 'TOMATE', 'TIGRE', 'TARTARUGA', 'LETRA T', 'LETRA TE', 'TETO', 'TEIA'],
+  R: ['R', 'ERRE', 'RE', 'RA', 'RI', 'RO', 'RU', 'AR', 'RATO', 'RUA', 'RELOGIO', 'RIO', 'ROBO', 'LETRA R', 'LETRA ERRE', 'RODA', 'REDE', 'ERRI'],
+  S: ['S', 'ESSE', 'SE', 'SA', 'SI', 'SO', 'SU', 'ES', 'SAPO', 'SOL', 'SOPA', 'SINO', 'SUCO', 'LETRA S', 'LETRA ESSE', 'SACO', 'SALA', 'ESSI', 'ECE', 'CE'],
+  T: ['T', 'TE', 'TA', 'TI', 'TO', 'TU', 'TATU', 'TREM', 'TOMATE', 'TIGRE', 'TARTARUGA', 'LETRA T', 'LETRA TE', 'TETO', 'TEIA', 'TER'],
   U: ['U', 'UH', 'UM', 'UVA', 'URSO', 'URUBU', 'UNHA', 'LETRA U'],
-  V: ['V', 'VE', 'VA', 'VI', 'VO', 'VU', 'VACA', 'VELA', 'VENTO', 'VIDRO', 'VULCAO', 'LETRA V', 'LETRA VE', 'VOVO'],
-  W: ['W', 'DABLIO', 'WAFFLE', 'WIFI', 'LETRA W', 'LETRA DABLIO', 'DUPLO V', 'DUPLO VE'],
-  X: ['X', 'XIS', 'CHIS', 'XA', 'XE', 'XI', 'XO', 'XU', 'EX', 'XICARA', 'XALE', 'XAROPE', 'LETRA X', 'LETRA XIS', 'XADREZ'],
-  Y: ['Y', 'IPSILON', 'YAKULT', 'YOGA', 'LETRA Y', 'LETRA IPSILON', 'YOUTUBE'],
-  Z: ['Z', 'ZE', 'ZA', 'ZI', 'ZO', 'ZU', 'ZEBRA', 'ZERO', 'ZOO', 'ZIPER', 'LETRA Z', 'LETRA ZE', 'ZANGADO']
+  V: ['V', 'VE', 'VA', 'VI', 'VO', 'VU', 'VACA', 'VELA', 'VENTO', 'VIDRO', 'VULCAO', 'LETRA V', 'LETRA VE', 'VOVO', 'VER'],
+  W: ['W', 'DABLIO', 'WAFFLE', 'WIFI', 'LETRA W', 'LETRA DABLIO', 'DUPLO V', 'DUPLO VE', 'DA BLIO'],
+  X: ['X', 'XIS', 'CHIS', 'XA', 'XE', 'XI', 'XO', 'XU', 'EX', 'XICARA', 'XALE', 'XAROPE', 'LETRA X', 'LETRA XIS', 'XADREZ', 'XIZ', 'CHIZ'],
+  Y: ['Y', 'IPSILON', 'YAKULT', 'YOGA', 'LETRA Y', 'LETRA IPSILON', 'YOUTUBE', 'I PSILON'],
+  Z: ['Z', 'ZE', 'ZA', 'ZI', 'ZO', 'ZU', 'ZEBRA', 'ZERO', 'ZOO', 'ZIPER', 'LETRA Z', 'LETRA ZE', 'ZANGADO', 'ZI', 'ZÉ']
 };
 
 const COMMON_LETTER_CONFUSIONS: Record<string, string[]> = {
@@ -264,7 +264,25 @@ function compareLetter(
     };
   }
 
-  // 5. Baixa confiança do microfone / ruído de fundo: nunca penaliza precipitadamente
+  // 5. Compensação para falhas acústicas da Web Speech API (transcrições curtas erradas)
+  // Se não detectou nenhuma outra letra (evitando conflito com identificações reais) e a transcrição é curta
+  if (allWords.length <= 2) {
+    const isFuzzyMatch = acceptedVariants.some(v => 
+      allWords.some(w => levenshteinDistance(v, w) === 1)
+    );
+    
+    if (isFuzzyMatch) {
+      return {
+        status: 'POSSIVELMENTE_CORRETO',
+        normalizedExpected: targetChar,
+        normalizedTranscript: normTranscript,
+        distance: 1,
+        observedError: 'Compensado por distância fonética curta (erro acústico comum da API sem contexto)'
+      };
+    }
+  }
+
+  // 6. Baixa confiança do microfone / ruído de fundo: nunca penaliza precipitadamente
   if (confidence < 0.65) {
     return {
       status: 'POSSIVELMENTE_CORRETO',
