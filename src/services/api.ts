@@ -1,7 +1,15 @@
-import { UserProfile } from '../types/auth';
+import { UserProfile, UserRole } from '../types/auth';
 import { School, SchoolClass, Student } from '../types/school';
 import { QuestionItem } from '../types/question';
 import { EvaluationSession } from '../types/evaluation';
+import {
+  AuditLogItem,
+  AnalyticsOverviewResponse,
+  StudentReportResponse,
+  ClassReportResponse,
+  AudioAnalysisResponse,
+  SessionSynthesisResponse
+} from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -55,17 +63,26 @@ class ApiService {
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        this.setToken(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('fluencia:unauthorized'));
+        }
+      }
+
       if (!response.ok) {
         throw new Error(data.message || `Erro ${response.status} ao conectar com o servidor`);
       }
 
       return data.data !== undefined ? data.data : data;
-    } catch (err: any) {
-      // Se a conexão falhar (offline), relança com indicação clara
-      if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        throw new Error('Servidor offline ou inatingível no momento.');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          throw new Error('Servidor offline ou inatingível no momento.');
+        }
+        throw err;
       }
-      throw err;
+      throw new Error('Erro desconhecido na comunicação com a API.');
     }
   }
 
@@ -164,8 +181,45 @@ class ApiService {
     });
   }
 
+  // --- Users (Admin/Superadmin) ---
+  public async getUsers(): Promise<{ users: UserProfile[] }> {
+    return this.request<{ users: UserProfile[] }>('/users');
+  }
+
+  public async getUserById(id: string): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>(`/users/${id}`);
+  }
+
+  public async createUser(data: {
+    name: string;
+    email: string;
+    password?: string;
+    role?: UserRole;
+  }): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public async updateUser(
+    id: string,
+    data: Partial<{ name: string; email: string; role: UserRole; active: boolean; password?: string }>
+  ): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public async deleteUser(id: string): Promise<void> {
+    return this.request<void>(`/users/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // --- Evaluations ---
-  public async submitEvaluation(sessionData: any): Promise<{ session: EvaluationSession }> {
+  public async submitEvaluation(sessionData: unknown): Promise<{ session: EvaluationSession }> {
     return this.request<{ session: EvaluationSession }>('/evaluations', {
       method: 'POST',
       body: JSON.stringify(sessionData)
@@ -184,16 +238,8 @@ class ApiService {
     return this.request<{ session: EvaluationSession }>(`/evaluations/${id}`);
   }
 
-  public async analyzeAudioItem(formData: FormData): Promise<{
-    transcript: string;
-    status: 'CORRETO' | 'POSSIVELMENTE_CORRETO' | 'INCORRETO' | 'SEM_RESPOSTA';
-    similarity: number;
-    observedError?: string;
-    phonemeFindings?: string[];
-    pedagogicalNote?: string;
-    duration?: number;
-  }> {
-    return this.request('/evaluations/analyze-audio', {
+  public async analyzeAudioItem(formData: FormData): Promise<AudioAnalysisResponse> {
+    return this.request<AudioAnalysisResponse>('/evaluations/analyze-audio', {
       method: 'POST',
       body: formData
     });
@@ -205,47 +251,43 @@ class ApiService {
     totalItems: number;
     correctCount: number;
     itemsSummary: string;
-  }): Promise<{
-    executiveSummary: string;
-    recommendations: string[];
-    strengths: string[];
-  }> {
-    return this.request('/evaluations/generate-session-synthesis', {
+  }): Promise<SessionSynthesisResponse> {
+    return this.request<SessionSynthesisResponse>('/evaluations/generate-session-synthesis', {
       method: 'POST',
       body: JSON.stringify(data)
     });
   }
 
   // --- Reports ---
-  public async getStudentReport(studentId: string): Promise<any> {
-    return this.request<any>(`/reports/students/${studentId}`);
+  public async getStudentReport(studentId: string): Promise<StudentReportResponse> {
+    return this.request<StudentReportResponse>(`/reports/students/${studentId}`);
   }
 
-  public async getClassReport(classId: string): Promise<any> {
-    return this.request<any>(`/reports/classes/${classId}`);
+  public async getClassReport(classId: string): Promise<ClassReportResponse> {
+    return this.request<ClassReportResponse>(`/reports/classes/${classId}`);
   }
 
   // --- Analytics ---
-  public async getAnalyticsOverview(): Promise<any> {
-    return this.request<any>('/analytics/overview');
+  public async getAnalyticsOverview(): Promise<AnalyticsOverviewResponse> {
+    return this.request<AnalyticsOverviewResponse>('/analytics/overview');
   }
 
   // --- Audit ---
-  public async getAuditLogs(entity?: string, action?: string, limit: number = 50): Promise<{ logs: any[] }> {
+  public async getAuditLogs(entity?: string, action?: string, limit: number = 50): Promise<{ logs: AuditLogItem[] }> {
     const params = new URLSearchParams();
     if (entity) params.append('entity', entity);
     if (action) params.append('action', action);
     params.append('limit', limit.toString());
-    return this.request<{ logs: any[] }>(`/audit?${params.toString()}`);
+    return this.request<{ logs: AuditLogItem[] }>(`/audit?${params.toString()}`);
   }
 
   // --- Settings ---
-  public async getSettings(): Promise<{ settings: Record<string, any> }> {
-    return this.request<{ settings: Record<string, any> }>('/settings');
+  public async getSettings(): Promise<{ settings: Record<string, unknown> }> {
+    return this.request<{ settings: Record<string, unknown> }>('/settings');
   }
 
-  public async updateSetting(key: string, value: any, description?: string): Promise<any> {
-    return this.request<any>('/settings', {
+  public async updateSetting(key: string, value: unknown, description?: string): Promise<{ message: string; setting: unknown }> {
+    return this.request<{ message: string; setting: unknown }>('/settings', {
       method: 'PUT',
       body: JSON.stringify({ key, value, description })
     });

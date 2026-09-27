@@ -17,6 +17,9 @@ import { api } from '../../services/api';
 import { School, SchoolClass, Student } from '../../types/school';
 import { QuestionItem } from '../../types/question';
 
+import { UserProfile } from '../../types/auth';
+import { AnalyticsOverviewResponse, AuditLogItem, ClassReportResponse } from '../../types/api';
+
 interface AdminDashboardProps {
   onBack: () => void;
 }
@@ -27,19 +30,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const { user, hasRole } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-  // Estados de dados
-  const [overview, setOverview] = useState<any>(null);
+  // Estados de dados tipados
+  const [overview, setOverview] = useState<AnalyticsOverviewResponse | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
-  const [usersList, setUsersList] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [usersList, setUsersList] = useState<UserProfile[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Filtros
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [classReportData, setClassReportData] = useState<any>(null);
+  const [classReportData, setClassReportData] = useState<ClassReportResponse | null>(null);
 
   useEffect(() => {
     loadTabData(activeTab);
@@ -64,7 +67,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const res = await api.getQuestions(false);
         setQuestions(res.questions || []);
       } else if (tab === 'users' && hasRole('SUPERADMIN')) {
-        const res: any = await (api as any).request('/users');
+        const res = await api.getUsers();
         setUsersList(res.users || []);
       } else if (tab === 'audit' && hasRole('SUPERADMIN')) {
         const res = await api.getAuditLogs();
@@ -247,7 +250,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               <h3 className="font-bold text-base text-slate-800">Avaliações Recentes</h3>
               {overview?.recentEvaluations && overview.recentEvaluations.length > 0 ? (
                 <ul className="space-y-2 text-xs">
-                  {overview.recentEvaluations.map((ev: any) => (
+                  {overview.recentEvaluations.map((ev) => (
                     <li key={ev.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
                       <span className="font-bold text-slate-800">{ev.student?.name}</span>
                       <span className="text-slate-500 font-semibold">{ev.accuracyPercentage}% ({((ev.averageResponseTimeMs || 0)/1000).toFixed(1)}s)</span>
@@ -322,7 +325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {classReportData.students?.map((st: any) => (
+                    {classReportData.students?.map((st) => (
                       <tr key={st.id} className="hover:bg-slate-50/80">
                         <td className="py-3 px-3 font-bold text-slate-800">{st.name}</td>
                         <td className="py-3 px-3 text-slate-500 text-xs">{st.registrationNumber || '—'}</td>

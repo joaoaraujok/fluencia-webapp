@@ -9,8 +9,8 @@ import {
   getPendingOfflineCount
 } from './db';
 import { SchoolClass, Student } from '../types/school';
-import { QuestionItem } from '../types/question';
-import { EvaluationSession } from '../types/evaluation';
+import { DifficultyLevel, QuestionItem } from '../types/question';
+import { EvaluationMode, EvaluationSession } from '../types/evaluation';
 import { selectEvaluationItems } from '../data/questionBank';
 
 class DataRepository {
@@ -62,7 +62,7 @@ class DataRepository {
    * Obtém itens para avaliação com fallback inteligente
    */
   public async getEvaluationQuestions(
-    mode: 'complete' | 'pre_leitor' | 'leitor' | any = 'complete',
+    mode: EvaluationMode | DifficultyLevel | 'pre_leitor' | 'leitor' = 'complete',
     limit: number = 10
   ): Promise<QuestionItem[]> {
     try {
@@ -81,7 +81,8 @@ class DataRepository {
     if (cached.length >= 10) {
       return cached.slice(0, limit * 2);
     }
-    return selectEvaluationItems(mode, limit);
+    const selectedMode: 'complete' | DifficultyLevel = typeof mode === 'number' ? mode : 'complete';
+    return selectEvaluationItems(selectedMode, limit);
   }
 
   /**
@@ -128,8 +129,9 @@ class DataRepository {
       session.syncStatus = 'synced';
       await saveEvaluationSessionLocally(session);
       return { synced: true, session };
-    } catch (err: any) {
-      console.warn('Falha no envio da avaliação ao backend. Enfileirando offline:', err.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Falha desconhecida de comunicação';
+      console.warn('Falha no envio da avaliação ao backend. Enfileirando offline:', errMsg);
       session.syncStatus = 'pending';
       await saveEvaluationSessionLocally(session);
       await enqueueOfflineEvaluation(session.id, session);
@@ -155,7 +157,7 @@ class DataRepository {
           mode: String(payload.mode),
           notes: payload.notes,
           clientTimestamp: new Date(payload.timestamp).toISOString(),
-          items: payload.items.map((i: any) => ({
+          items: payload.items.map((i) => ({
             questionId: i.questionId && i.questionId.length > 10 ? i.questionId : undefined,
             targetText: i.targetText,
             level: i.level === 1 ? 'PRE_LEITOR' : 'LEITOR',
@@ -182,9 +184,10 @@ class DataRepository {
         await api.submitEvaluation(backendPayload);
         await markOfflineEvaluationSynced(item.id);
         syncedCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : 'Erro na sincronização';
         console.error(`Erro ao sincronizar avaliação ${item.id}:`, err);
-        await markOfflineEvaluationError(item.id, err.message);
+        await markOfflineEvaluationError(item.id, errMsg);
         errorCount++;
       }
     }

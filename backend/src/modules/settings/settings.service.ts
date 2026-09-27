@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
 
@@ -7,7 +8,7 @@ export class SettingsService {
       orderBy: { key: 'asc' }
     });
 
-    const settingsMap: Record<string, any> = {};
+    const settingsMap: Record<string, unknown> = {};
     for (const item of list) {
       settingsMap[item.key] = item.value;
     }
@@ -15,7 +16,7 @@ export class SettingsService {
     return settingsMap;
   }
 
-  public async updateSetting(key: string, value: any, description?: string, actorUserId?: string) {
+  public async updateSetting(key: string, value: Prisma.InputJsonValue, description?: string, actorUserId?: string) {
     const existing = await prisma.pedagogicalSetting.findUnique({ where: { key } });
 
     const updated = await prisma.pedagogicalSetting.upsert({

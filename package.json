@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "tsc -b && vite build",
+    "build:backend": "npm --prefix backend run build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:backend": "npm --prefix backend test",
+    "test:all": "vitest run && npm --prefix backend test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

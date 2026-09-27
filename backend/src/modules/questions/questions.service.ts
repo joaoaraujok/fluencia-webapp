@@ -1,5 +1,5 @@
 import { prisma } from '../../database/prisma.js';
-import { QuestionLevel, ItemType } from '@prisma/client';
+import { Prisma, QuestionLevel, ItemType } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
 
@@ -13,7 +13,7 @@ interface CreateQuestionInput {
   difficulty?: number;
   targetPhonemes?: string[];
   order?: number;
-  metadata?: any;
+  metadata?: Prisma.InputJsonValue;
   actorUserId: string;
 }
 
@@ -29,13 +29,13 @@ interface UpdateQuestionInput {
   targetPhonemes?: string[];
   active?: boolean;
   order?: number;
-  metadata?: any;
+  metadata?: Prisma.InputJsonValue;
   actorUserId: string;
 }
 
 export class QuestionsService {
   public async listQuestions(level?: QuestionLevel, category?: string, activeOnly: boolean = false) {
-    const where: any = {};
+    const where: Prisma.QuestionWhereInput = {};
     if (level) where.level = level;
     if (category) where.category = category;
     if (activeOnly) where.active = true;
@@ -166,7 +166,7 @@ export class QuestionsService {
       throw new AppError('Questão não encontrada.', 404);
     }
 
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.QuestionUpdateInput = {};
     if (text !== undefined) dataToUpdate.text = text.trim().toUpperCase();
     if (level !== undefined) dataToUpdate.level = level;
     if (type !== undefined) dataToUpdate.type = type;

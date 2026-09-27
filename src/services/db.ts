@@ -7,7 +7,7 @@ import { QuestionItem } from '../types/question';
 
 export interface OfflineEvaluationItem {
   id: string; // UUID da sessão
-  payload: any;
+  payload: EvaluationSession;
   status: 'pending' | 'syncing' | 'error';
   attempts: number;
   lastAttemptAt?: number;
@@ -94,7 +94,7 @@ export async function clearAllEvaluations(): Promise<void> {
 /**
  * Fila Offline de Avaliações
  */
-export async function enqueueOfflineEvaluation(sessionId: string, payload: any): Promise<void> {
+export async function enqueueOfflineEvaluation(sessionId: string, payload: EvaluationSession): Promise<void> {
   await db.offlineQueue.put({
     id: sessionId,
     payload,
@@ -130,17 +130,4 @@ export async function markOfflineEvaluationError(sessionId: string, errorMessage
 
 export async function getPendingOfflineCount(): Promise<number> {
   return db.offlineQueue.count();
-}
-
-// Funções de compatibilidade para dados locais legados
-export async function getChildren(): Promise<ChildProfile[]> {
-  return await db.children.orderBy('createdAt').reverse().toArray();
-}
-
-export async function saveChild(child: ChildProfile): Promise<void> {
-  await db.children.put(child);
-}
-
-export async function deleteChild(childId: string): Promise<void> {
-  await db.children.delete(childId);
 }

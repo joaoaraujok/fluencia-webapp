@@ -1,5 +1,5 @@
 import { prisma } from '../../database/prisma.js';
-import { Shift } from '@prisma/client';
+import { Prisma, Shift } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
 
@@ -24,7 +24,7 @@ interface UpdateClassInput {
 
 export class ClassesService {
   public async listClasses(schoolId?: string) {
-    const where: any = {};
+    const where: Prisma.SchoolClassWhereInput = {};
     if (schoolId) {
       where.schoolId = schoolId;
     }

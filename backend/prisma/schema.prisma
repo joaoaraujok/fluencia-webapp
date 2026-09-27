@@ -116,6 +116,8 @@ model Student {
   class       SchoolClass         @relation(fields: [classId], references: [id], onDelete: Cascade)
   evaluations EvaluationSession[]
 
+  @@index([classId])
+  @@index([schoolId])
   @@map("students")
 }
 
@@ -187,6 +189,10 @@ model EvaluationSession {
   criteria EvaluationCriteria @relation(fields: [criteriaVersion], references: [version])
   items    EvaluationItem[]
 
+  @@index([studentId])
+  @@index([classId])
+  @@index([schoolId])
+  @@index([createdAt])
   @@map("evaluation_sessions")
 }
 
@@ -218,6 +224,7 @@ model EvaluationItem {
   session  EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question Question?         @relation(fields: [questionId], references: [id], onDelete: SetNull)
 
+  @@index([sessionId])
   @@map("evaluation_items")
 }
 
@@ -235,6 +242,9 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 

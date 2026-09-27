@@ -6,13 +6,7 @@ import { HomeScreen } from './components/home/HomeScreen';
 import { PreparationScreen } from './components/evaluation/PreparationScreen';
 import { TestingScreen } from './components/evaluation/TestingScreen';
 import { EnvironmentCheckScreen } from './components/evaluation/EnvironmentCheckScreen';
-import { ResultDashboard } from './components/results/ResultDashboard';
-import { HistoryView } from './components/history/HistoryView';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { StudentSelectionModal } from './components/children/StudentSelectionModal';
-import { LoginModal } from './components/auth/LoginModal';
-import { SettingsModal } from './components/settings/SettingsModal';
-import { InstallAppModal } from './components/common/InstallAppModal';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useEvaluationEngine } from './hooks/useEvaluationEngine';
 import { Student } from './types/school';
@@ -23,6 +17,26 @@ import { AppSettings, DEFAULT_SETTINGS } from './types/settings';
 import { getStoredSettings, saveStoredSettings } from './services/db';
 import { repository } from './services/repository';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+// Carregamento dinâmico sob demanda (Code-splitting) para redução drástica do bundle inicial
+const ResultDashboard = React.lazy(() =>
+  import('./components/results/ResultDashboard').then((m) => ({ default: m.ResultDashboard }))
+);
+const HistoryView = React.lazy(() =>
+  import('./components/history/HistoryView').then((m) => ({ default: m.HistoryView }))
+);
+const AdminDashboard = React.lazy(() =>
+  import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
+);
+const LoginModal = React.lazy(() =>
+  import('./components/auth/LoginModal').then((m) => ({ default: m.LoginModal }))
+);
+const SettingsModal = React.lazy(() =>
+  import('./components/settings/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const InstallAppModal = React.lazy(() =>
+  import('./components/common/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
+);
 
 type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
 
@@ -192,28 +206,30 @@ const MainApp: React.FC = () => {
           </>
         )}
 
-        {view === 'result' && activeSession && (
-          <ResultDashboard
-            session={activeSession}
-            onRestart={() => setView('home')}
-            onViewHistory={() => setView('history')}
-            onInstallApp={() => setIsInstallModalOpen(true)}
-          />
-        )}
+        <React.Suspense fallback={<div className="flex items-center justify-center p-12 text-slate-400 font-bold text-xs">Carregando painel...</div>}>
+          {view === 'result' && activeSession && (
+            <ResultDashboard
+              session={activeSession}
+              onRestart={() => setView('home')}
+              onViewHistory={() => setView('history')}
+              onInstallApp={() => setIsInstallModalOpen(true)}
+            />
+          )}
 
-        {view === 'history' && (
-          <HistoryView
-            onBack={() => setView('home')}
-            onSelectSession={(session) => {
-              setActiveSession(session);
-              setView('result');
-            }}
-          />
-        )}
+          {view === 'history' && (
+            <HistoryView
+              onBack={() => setView('home')}
+              onSelectSession={(session) => {
+                setActiveSession(session);
+                setView('result');
+              }}
+            />
+          )}
 
-        {view === 'admin' && (
-          <AdminDashboard onBack={() => setView('home')} />
-        )}
+          {view === 'admin' && (
+            <AdminDashboard onBack={() => setView('home')} />
+          )}
+        </React.Suspense>
       </main>
 
       {/* Modais Globais */}
@@ -224,31 +240,39 @@ const MainApp: React.FC = () => {
         onSelectStudent={(st) => setActiveStudent(st)}
       />
 
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onSuccess={() => setView('admin')}
-      />
+      <React.Suspense fallback={null}>
+        {isLoginModalOpen && (
+          <LoginModal
+            isOpen={isLoginModalOpen}
+            onClose={() => setIsLoginModalOpen(false)}
+            onSuccess={() => setView('admin')}
+          />
+        )}
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        settings={settings}
-        onClose={() => setIsSettingsModalOpen(false)}
-        onSaveSettings={handleUpdateSettings}
-      />
+        {isSettingsModalOpen && (
+          <SettingsModal
+            isOpen={isSettingsModalOpen}
+            settings={settings}
+            onClose={() => setIsSettingsModalOpen(false)}
+            onSaveSettings={handleUpdateSettings}
+          />
+        )}
+
+        {isInstallModalOpen && (
+          <InstallAppModal
+            isOpen={isInstallModalOpen}
+            onClose={() => setIsInstallModalOpen(false)}
+            canInstallNative={canInstall}
+            onNativeInstall={triggerInstall}
+            isInstalled={isInstalled}
+          />
+        )}
+      </React.Suspense>
 
       <AudioPermissionModal
         isOpen={isAudioPermModalOpen}
         onClose={() => setIsAudioPermModalOpen(false)}
         onGranted={() => setIsAudioPermModalOpen(false)}
-      />
-
-      <InstallAppModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-        canInstallNative={canInstall}
-        onNativeInstall={triggerInstall}
-        isInstalled={isInstalled}
       />
     </div>
   );

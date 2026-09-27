@@ -18,7 +18,18 @@ const envSchema = z.object({
   EVALUATION_SILENT_MODE_DURING_SPEECH: z.string().transform((v) => v === 'true').default('true'),
   GROQ_API_KEY: z.string().min(1, 'GROQ_API_KEY é obrigatória'),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY é obrigatória')
-});
+}).refine(
+  (data) => {
+    if (data.NODE_ENV === 'production' && data.SUPERADMIN_PASSWORD === 'Fluencia@2026!SuperAdmin') {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Em produção, SUPERADMIN_PASSWORD deve ser personalizada na variável de ambiente e não pode utilizar o valor padrão.',
+    path: ['SUPERADMIN_PASSWORD']
+  }
+);
 
 const parsed = envSchema.safeParse(process.env);
 

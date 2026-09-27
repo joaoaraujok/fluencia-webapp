@@ -1,8 +1,9 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.js';
 
 export class AuditService {
   public async listLogs(entity?: string, action?: string, limit: number = 50) {
-    const where: any = {};
+    const where: Prisma.AuditLogWhereInput = {};
     if (entity) where.entity = entity;
     if (action) where.action = action;
 

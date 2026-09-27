@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../database/prisma.js';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
 
@@ -123,7 +123,7 @@ export class UsersService {
       }
     }
 
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.UserUpdateInput = {};
     if (name !== undefined) dataToUpdate.name = name.trim();
     if (email !== undefined) {
       const normalizedEmail = email.trim().toLowerCase();

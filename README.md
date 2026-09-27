@@ -81,6 +81,22 @@ fluencia-app/
 
 ---
 
+### Comandos Unificados de Governança (Executados na Raiz)
+
+Para agilizar a operação, o projeto conta com comandos unificados centralizados no `package.json` raiz:
+
+| Comando | Descrição |
+| :--- | :--- |
+| `npm run dev` | Inicia o servidor frontend Vite (`http://localhost:5173`) |
+| `npm run dev:backend` | Inicia o servidor backend Express com tsx watch (`http://localhost:3001`) |
+| `npm run build` | Compila o frontend (`tsc -b && vite build`) com code-splitting e PWA |
+| `npm run build:backend` | Compila o backend TypeScript para produção (`backend/dist`) |
+| `npm test` | Executa os 62 testes unitários e de integração do frontend com Vitest |
+| `npm run test:backend` | Executa os 12 testes unitários e de integração do backend com Vitest |
+| `npm run test:all` | Executa a suíte unificada de testes (frontend + backend = 74 testes) |
+
+---
+
 ### 1. Configurando e Executando o Backend
 
 1. **Acesse o diretório do backend:**
@@ -147,24 +163,29 @@ fluencia-app/
 
 ---
 
+## ⚡ Performance e Code-Splitting
+
+A aplicação implementa otimizações arquiteturais de carregamento e runtime:
+- **Code-Splitting via `React.lazy` e `Suspense`:** Componentes de rotas pesadas e modais administrativos (`ResultDashboard`, `AdminDashboard`, `SettingsModal`, `HistoryView`, `InstallAppModal`) são carregados sob demanda. O bundle inicial de entrada foi reduzido de **615 kB para 366 kB (-40%)**.
+- **Chunking Estratégico no Rollup/Vite:** Separação limpa de bibliotecas de terceiros (`vendor-react`, `vendor-icons`, `vendor-db`).
+- **Indexação Relacional Otimizada no Prisma:** Índices compostos e simples em `EvaluationSession(studentId, evaluatedAt)`, `EvaluationSession(schoolId, evaluatedAt)`, `EvaluationItem(sessionId)`, `Student(classId, active)` e `AuditLog(action, createdAt)` garantem buscas analíticas rápidas sem N+1 queries.
+
+---
+
 ## 🧪 Execução de Testes Automatizados
 
-O projeto conta com suítes de testes automatizados com cobertura completa para regras de negócio, motor de cálculo, persistência offline e segurança.
+O projeto conta com suítes de testes automatizados com cobertura completa para regras de negócio, motor de cálculo fonético, comunicação com API e persistência offline.
 
-### Testes do Frontend:
+### Teste Unificado Completo:
 ```bash
 # Na raiz do projeto:
-npm test
+npm run test:all
 ```
-*Valida reconhecimento de voz, banco de questões, motor fonético, cálculo de similaridade e resiliência offline do repositório.*
+*Executa 74 testes no total (62 testes no frontend e 12 no backend) cobrindo regras pedagógicas, classificação adaptativa, debounce/deduplicação de áudio, RBAC, autenticação e tolerância a falhas de rede.*
 
-### Testes do Backend:
-```bash
-# No diretório backend/:
-cd backend
-npm test
-```
-*Valida autenticação com bcrypt/JWT, controle de acesso RBAC e cálculo imutável de sessões de avaliação.*
+### Testes Isolados por Camada:
+- **Frontend (62 testes):** `npm test`
+- **Backend (12 testes):** `npm run test:backend`
 
 ---
 
@@ -179,7 +200,7 @@ npm run build
 
 ### Backend:
 ```bash
-# No diretório backend/:
+# Na raiz: npm run build:backend (ou em backend/: npm run build && npm start)
 npm run build
 npm start
 ```

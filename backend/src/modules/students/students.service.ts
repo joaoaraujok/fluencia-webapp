@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
@@ -26,7 +27,7 @@ interface UpdateStudentInput {
 
 export class StudentsService {
   public async listStudents(classId?: string, schoolId?: string, search?: string) {
-    const where: any = {};
+    const where: Prisma.StudentWhereInput = {};
     if (classId) where.classId = classId;
     if (schoolId) where.schoolId = schoolId;
     if (search && search.trim().length > 0) {
@@ -138,7 +139,7 @@ export class StudentsService {
       throw new AppError('Aluno não encontrado.', 404);
     }
 
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.StudentUncheckedUpdateInput = {};
     if (name !== undefined) dataToUpdate.name = name.trim();
     if (birthDate !== undefined) dataToUpdate.birthDate = birthDate ? new Date(birthDate) : null;
     if (registrationNumber !== undefined) dataToUpdate.registrationNumber = registrationNumber.trim();

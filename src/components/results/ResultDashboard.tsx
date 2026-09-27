@@ -51,10 +51,11 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
   };
 
   // Definição do diagnóstico entre os 6 níveis oficiais
-  const diagnosisKey = session.pedagogicalDiagnosis || 'PRE_LEITOR_1';
-  const diagnosisInfo = (DIAGNOSIS_DEFINITIONS as Record<string, any>)[diagnosisKey] || {
+  const diagnosisKey = (session.pedagogicalDiagnosis || 'PRE_LEITOR_1') as keyof typeof DIAGNOSIS_DEFINITIONS;
+  const diagnosisInfo = DIAGNOSIS_DEFINITIONS[diagnosisKey] || {
     id: diagnosisKey,
-    title: diagnosisKey.replace(/_/g, ' '),
+    code: 'PL1',
+    title: String(diagnosisKey).replace(/_/g, ' '),
     subtitle: 'Nível de Fluência',
     description: 'Avaliação da fluência oral leitora.',
     badgeColor: 'bg-slate-100 text-slate-800 border-slate-300'

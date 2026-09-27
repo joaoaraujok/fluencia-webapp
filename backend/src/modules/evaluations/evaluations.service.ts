@@ -1,5 +1,5 @@
 import { prisma } from '../../database/prisma.js';
-import { RecognitionStatus, EvaluationStatus, QuestionLevel, ItemType } from '@prisma/client';
+import { Prisma, RecognitionStatus, EvaluationStatus, QuestionLevel, ItemType } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError.js';
 import { recordAuditLog } from '../../middlewares/audit.middleware.js';
 import { env } from '../../config/env.js';
@@ -42,7 +42,7 @@ interface CreateEvaluationSessionInput {
 
 export class EvaluationsService {
   public async listEvaluations(studentId?: string, classId?: string, schoolId?: string) {
-    const where: any = {};
+    const where: Prisma.EvaluationSessionWhereInput = {};
     if (studentId) where.studentId = studentId;
     if (classId) where.classId = classId;
     if (schoolId) where.schoolId = schoolId;
