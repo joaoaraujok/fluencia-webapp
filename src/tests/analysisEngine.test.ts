@@ -3,7 +3,8 @@ import {
   normalizeText,
   levenshteinDistance,
   compareSpeech,
-  generatePracticeRecommendations
+  generatePracticeRecommendations,
+  compileWordsMetrics
 } from '../services/analysisEngine';
 import { QuestionItem } from '../types/question';
 import { EvaluationItemResult } from '../types/evaluation';
@@ -246,6 +247,29 @@ describe('Motor de Análise Fonética e Normalização (analysisEngine)', () => 
     it('deve reconhecer homófonos fonéticos exatos como CH <-> X ("xuva" para "CHUVA")', () => {
       const result = compareSpeech(itemChuva, 'xuva');
       expect(result.status).toBe('CORRETO');
+    });
+  });
+
+  describe('Cálculo Preciso de Palavras Por Minuto (PPM / WPM)', () => {
+    it('deve calcular Palavras Por Minuto com base no tempo de leitura sem o acréscimo de silêncio de espera', () => {
+      // 10 palavras lidas corretamente, cada uma com 1500ms (1.5s após desconto dos 3s de silêncio)
+      const mockItems: any[] = Array.from({ length: 10 }).map((_, idx) => ({
+        questionId: `w_${idx + 1}`,
+        targetText: 'BOLA',
+        level: 1,
+        type: 'word',
+        status: 'CORRETO',
+        responseTimeMs: 1500, // 4500ms brutos - 3000ms de silêncio = 1500ms
+        isTimeLimitReached: false
+      }));
+
+      const report = compileWordsMetrics(mockItems);
+
+      expect(report.presented).toBe(10);
+      expect(report.correct).toBe(10);
+      expect(report.averageDurationMs).toBe(1500);
+      // 10 palavras em 15 segundos = 40 palavras por minuto
+      expect(report.wordsPerMinute).toBe(40);
     });
   });
 });

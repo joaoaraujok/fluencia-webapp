@@ -98,18 +98,9 @@ fluencia-app/
    ```bash
    cp .env.example .env
    ```
-   Exemplo de `.env`:
-   ```env
-   NODE_ENV=development
-   PORT=3333
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fluencia_db?schema=public"
-   JWT_SECRET="sua-chave-secreta-jwt-altamente-segura-e-longa-32-chars-min"
-   JWT_EXPIRES_IN="8h"
-   CORS_ORIGIN="http://localhost:5173"
-   INITIAL_SUPERADMIN_NAME="Administrador Geral FluencIA"
-   INITIAL_SUPERADMIN_EMAIL="superadmin@fluencia.edu.br"
-   INITIAL_SUPERADMIN_PASSWORD="SenhaTemporariaSegura2026!"
-   ```
+   Preencha as variáveis no arquivo `.env`. Para obter as chaves gratuitas de IA:
+   - **Groq Cloud (Whisper Large v3 Turbo)**: Crie uma conta gratuita em [Groq Console](https://console.groq.com/keys) e gere sua API Key.
+   - **Google Gemini (SDK Oficial)**: Gere sua chave de API gratuita no [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 4. **Execute as Migrações do Banco de Dados:**
    ```bash
@@ -125,8 +116,8 @@ fluencia-app/
    ```bash
    npm run dev
    ```
-   O backend estará acessível em: `http://localhost:3333`.  
-   A documentação interativa OpenAPI/Swagger estará disponível em: `http://localhost:3333/api-docs`.
+   O backend estará acessível em: `http://localhost:3001`.  
+   A documentação interativa OpenAPI/Swagger estará disponível em: `http://localhost:3001/api-docs`.
 
 ---
 
@@ -143,9 +134,9 @@ fluencia-app/
    ```bash
    cp .env.example .env
    ```
-   Certifique-se de que `VITE_API_URL` aponta para o backend:
+   Certifique-se de que `VITE_API_URL` aponta para a porta do backend (`3001`):
    ```env
-   VITE_API_URL=http://localhost:3333/api/v1
+   VITE_API_URL=http://localhost:3001/api/v1
    ```
 
 3. **Inicie a aplicação React com Vite:**

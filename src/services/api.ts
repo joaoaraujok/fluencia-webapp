@@ -33,10 +33,14 @@ class ApiService {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>)
     };
+
+    if (!isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     const token = this.getToken();
     if (token) {
@@ -178,6 +182,38 @@ class ApiService {
 
   public async getEvaluationById(id: string): Promise<{ session: EvaluationSession }> {
     return this.request<{ session: EvaluationSession }>(`/evaluations/${id}`);
+  }
+
+  public async analyzeAudioItem(formData: FormData): Promise<{
+    transcript: string;
+    status: 'CORRETO' | 'POSSIVELMENTE_CORRETO' | 'INCORRETO' | 'SEM_RESPOSTA';
+    similarity: number;
+    observedError?: string;
+    phonemeFindings?: string[];
+    pedagogicalNote?: string;
+    duration?: number;
+  }> {
+    return this.request('/evaluations/analyze-audio', {
+      method: 'POST',
+      body: formData
+    });
+  }
+
+  public async generateSessionSynthesis(data: {
+    childName?: string;
+    accuracyPercentage: number;
+    totalItems: number;
+    correctCount: number;
+    itemsSummary: string;
+  }): Promise<{
+    executiveSummary: string;
+    recommendations: string[];
+    strengths: string[];
+  }> {
+    return this.request('/evaluations/generate-session-synthesis', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   // --- Reports ---

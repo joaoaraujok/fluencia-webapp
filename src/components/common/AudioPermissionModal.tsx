@@ -137,7 +137,7 @@ export const AudioPermissionModal: React.FC<AudioPermissionModalProps> = ({
         </div>
 
         <p className="mt-4 text-[11px] text-slate-400">
-          🔒 <strong>Privacidade protegida:</strong> O áudio é processado localmente no dispositivo para avaliação pedagógica.
+          🔒 <strong>Privacidade protegida:</strong> O áudio capturado é processado com alta fidelidade via Groq Whisper Large v3 e avaliado pedagogicamente pelo Google Gemini.
         </p>
       </div>
     </div>

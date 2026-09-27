@@ -252,6 +252,33 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
         </div>
       </div>
 
+      {/* SÍNTESE PEDAGÓGICA ESTRUTURADA COM GOOGLE GEMINI */}
+      {session.aiPedagogicalSynthesis && (
+        <div className="card p-6 bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-3xl shadow-md space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-purple-500/30 text-purple-300">
+              <Sparkles className="w-5 h-5 text-purple-300" />
+            </span>
+            <h3 className="font-display font-black text-lg text-white">
+              Síntese Pedagógica Estruturada (Google Gemini)
+            </h3>
+          </div>
+          <p className="text-sm text-purple-100 leading-relaxed">
+            {session.aiPedagogicalSynthesis.executiveSummary}
+          </p>
+          {session.aiPedagogicalSynthesis.strengths && session.aiPedagogicalSynthesis.strengths.length > 0 && (
+            <div className="pt-2 border-t border-purple-800/60 flex flex-wrap gap-2 text-xs items-center">
+              <span className="font-bold text-purple-300">Potencialidades observadas:</span>
+              {session.aiPedagogicalSynthesis.strengths.map((str, i) => (
+                <span key={i} className="px-2.5 py-0.5 rounded-full bg-purple-800/80 text-purple-200 border border-purple-700/60">
+                  ✓ {str}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* SEÇÃO 20: RESUMO EXECUTIVO PARA O SUPERVISOR (Responde às 7 Perguntas) */}
       {exec && (
         <div className="card p-6 sm:p-8 bg-gradient-to-br from-indigo-50/50 via-white to-sky-50/40 border-indigo-100">

@@ -15,7 +15,9 @@ const envSchema = z.object({
   SUPERADMIN_PASSWORD: z.string().min(8).default('Fluencia@2026!SuperAdmin'),
   EVALUATION_DEFAULT_WORD_DURATION_SEC: z.string().transform((v) => parseInt(v, 10)).default('10'),
   EVALUATION_CRITERIA_VERSION: z.string().default('2026.1'),
-  EVALUATION_SILENT_MODE_DURING_SPEECH: z.string().transform((v) => v === 'true').default('true')
+  EVALUATION_SILENT_MODE_DURING_SPEECH: z.string().transform((v) => v === 'true').default('true'),
+  GROQ_API_KEY: z.string().min(1, 'GROQ_API_KEY é obrigatória'),
+  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY é obrigatória')
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Mic, X, SkipForward, Clock, Check, XCircle } from 'lucide-react';
+import { Mic, X, SkipForward, Clock, Check, XCircle, Sparkles, Cpu } from 'lucide-react';
 import { QuestionItem } from '../../types/question';
 import { AdaptiveEvaluationStage } from '../../types/evaluation';
 
@@ -15,6 +15,7 @@ interface TestingScreenProps {
   isMicListening: boolean;
   liveTranscript?: string;
   isSuccessFeedback?: boolean;
+  isAnalyzingAi?: boolean;
   onCancel: () => void;
   onSkip?: () => void;
   onMarkResult?: (status: 'CORRETO' | 'INCORRETO') => void;
@@ -32,6 +33,7 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
   isMicListening,
   liveTranscript,
   isSuccessFeedback,
+  isAnalyzingAi = false,
   onCancel,
   onSkip,
   onMarkResult
@@ -57,6 +59,8 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
   // Suporte a atalhos de teclado (1/Enter/C para acerto, 2/X para erro, Espaço/Seta para pular, ESC para cancelar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isAnalyzingAi) return;
+
       if (e.key === 'Escape') {
         onCancel();
       } else if ((e.key === '1' || e.key === 'Enter' || e.key === 'c' || e.key === 'C') && onMarkResult) {
@@ -72,7 +76,7 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel, onSkip, onMarkResult]);
+  }, [onCancel, onSkip, onMarkResult, isAnalyzingAi]);
 
   const getStageBadge = () => {
     if (isLetter || currentStage === 'letters') {
@@ -112,11 +116,16 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
         {/* Barra Superior de Tempo Global (4 minutos = 240s) */}
         <div className="flex items-center justify-between gap-3 text-xs bg-slate-900/5 px-3 py-1.5 rounded-full border border-slate-200/80">
           <div className="flex items-center gap-1.5 font-bold text-slate-700">
-            <Clock className="w-3.5 h-3.5 text-indigo-600 animate-spin-slow" />
+            <Clock className={`w-3.5 h-3.5 ${isAnalyzingAi ? 'text-amber-500 animate-pulse' : 'text-indigo-600 animate-spin-slow'}`} />
             <span>Tempo Global:</span>
-            <span className="font-mono text-indigo-700 font-black">
+            <span className={`font-mono font-black ${isAnalyzingAi ? 'text-amber-700' : 'text-indigo-700'}`}>
               {formatGlobalTime(globalElapsedSeconds)}
             </span>
+            {isAnalyzingAi && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                PAUSADO (IA)
+              </span>
+            )}
             <span className="text-slate-400 font-normal">/ 04:00</span>
           </div>
 
@@ -127,6 +136,11 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
               }`}
               style={{ width: `${globalProgressPercent}%` }}
             ></div>
+          </div>
+
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold shadow-2xs">
+            <Cpu className="w-3 h-3 text-purple-600" />
+            <span>Groq Whisper v3 + Gemini 3.8 Flash</span>
           </div>
 
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -181,11 +195,12 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
               <button
                 type="button"
                 onClick={onSkip}
-                className="px-2.5 py-1.5 rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 bg-white transition-all flex items-center gap-1 text-xs font-bold shadow-2xs cursor-pointer"
-                title="Avançar para o próximo item (Espaço ou Seta Direita)"
+                disabled={isAnalyzingAi}
+                className="px-3 py-1.5 rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center gap-1.5 text-xs font-bold shadow-2xs cursor-pointer disabled:opacity-50"
+                title="Concluir gravação e analisar fala com IA (Atalho: Espaço ou Seta Direita)"
               >
-                <SkipForward className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Pular</span>
+                <SkipForward className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Concluir Leitura</span>
               </button>
             )}
 
@@ -260,16 +275,22 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
 
           <div
             className={`mic-circle transition-all duration-200 ${
-              isSuccessFeedback
+              isAnalyzingAi
+                ? 'bg-gradient-to-tr from-indigo-600 to-purple-600 scale-110 shadow-lg shadow-indigo-300 ring-4 ring-indigo-300'
+                : isSuccessFeedback
                 ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 scale-110 shadow-emerald-300'
                 : ''
             }`}
           >
-            <Mic
-              className={`w-8 h-8 ${
-                isSuccessFeedback ? 'text-white' : 'text-amber-300'
-              } transition-transform ${isMicListening ? 'scale-110' : 'scale-100'}`}
-            />
+            {isAnalyzingAi ? (
+              <Sparkles className="w-8 h-8 text-white animate-spin" />
+            ) : (
+              <Mic
+                className={`w-8 h-8 ${
+                  isSuccessFeedback ? 'text-white' : 'text-amber-300'
+                } transition-transform ${isMicListening ? 'scale-110' : 'scale-100'}`}
+              />
+            )}
           </div>
         </div>
 
@@ -287,15 +308,21 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
             </span>
           </p>
 
-          {/* Feedback de voz capturada em tempo real */}
-          {isSuccessFeedback ? (
+          {/* Feedback de voz capturada e processamento da IA */}
+          {isAnalyzingAi ? (
+            <div className="text-xs font-black text-indigo-900 bg-indigo-100/95 border-2 border-indigo-400 px-4 py-2 rounded-full animate-pulse max-w-sm mx-auto shadow-md flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 animate-spin" />
+              <span>Analisando com Groq Whisper & Gemini...</span>
+            </div>
+          ) : isSuccessFeedback ? (
             <div className="text-xs font-black text-emerald-800 bg-emerald-200 border-2 border-emerald-400 px-4 py-1 rounded-full animate-bounce max-w-sm mx-auto shadow-sm flex items-center justify-center gap-1.5">
               <span>✨</span>
-              <span>Reconhecido: "{liveTranscript || item.text}"</span>
+              <span>Reconhecido pela IA: "{liveTranscript || item.text}"</span>
             </div>
           ) : liveTranscript ? (
-            <div className="text-xs font-extrabold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-3.5 py-1 rounded-full animate-fadeIn max-w-sm mx-auto shadow-sm truncate">
-              Ouvido: "{liveTranscript}"
+            <div className="text-xs font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3.5 py-1 rounded-full animate-fadeIn max-w-sm mx-auto shadow-sm truncate flex items-center justify-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span>{liveTranscript.includes('detectada') ? 'Gravando voz para análise...' : `Voz: "${liveTranscript}"`}</span>
             </div>
           ) : null}
 

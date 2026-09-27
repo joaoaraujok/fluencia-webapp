@@ -1,8 +1,11 @@
+import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { EvaluationsService } from './evaluations.service.js';
+import { speechAiService } from './speechAi.service.js';
 import { RecognitionStatus, QuestionLevel, ItemType } from '@prisma/client';
 import { getParam } from '../../shared/utils/param.util.js';
+import { AppError } from '../../shared/errors/AppError.js';
 
 const evaluationsService = new EvaluationsService();
 
@@ -77,4 +80,80 @@ export class EvaluationsController {
       next(err);
     }
   }
+
+  public async analyzeAudio(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const filePath = req.file?.path;
+    try {
+      if (!req.file || !filePath) {
+        throw new AppError('Nenhum arquivo de áudio enviado (campo audioFile obrigatório)', 400);
+      }
+
+      const targetText = String(req.body.targetText || '').trim();
+      const itemType = String(req.body.itemType || 'word').trim();
+
+      if (!targetText) {
+        throw new AppError('O campo targetText é obrigatório', 400);
+      }
+
+      // 1. Transcrição com Whisper Large v3 Turbo via Groq com biasing fonético
+      const transcriptionResult = await speechAiService.transcribeAudio(filePath, targetText, itemType);
+
+      // 2. Análise pedagógica estruturada com Gemini
+      const analysis = await speechAiService.analyzePedagogicalReading(
+        targetText,
+        transcriptionResult.text,
+        itemType
+      );
+
+      // Se for letra e estiver correta, exibe a letra alvo limpa (ex: "M" em vez do artefato "Amy")
+      const finalDisplayTranscript = (itemType === 'letter' && analysis.status === 'CORRETO')
+        ? targetText.toUpperCase()
+        : transcriptionResult.text;
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          transcript: finalDisplayTranscript,
+          status: analysis.status,
+          similarity: analysis.similarity,
+          observedError: analysis.observedError,
+          phonemeFindings: analysis.phonemeFindings,
+          pedagogicalNote: analysis.pedagogicalNote,
+          duration: transcriptionResult.duration
+        }
+      });
+    } catch (err) {
+      next(err);
+    } finally {
+      if (filePath) {
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.warn(`[SpeechAi] Falha ao remover arquivo temporário ${filePath}:`, unlinkErr);
+          }
+        });
+      }
+    }
+  }
+
+  public async generateSessionSynthesis(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { childName, accuracyPercentage, totalItems, correctCount, itemsSummary } = req.body;
+
+      const synthesis = await speechAiService.generateSessionSynthesis({
+        childName,
+        accuracyPercentage: Number(accuracyPercentage || 0),
+        totalItems: Number(totalItems || 0),
+        correctCount: Number(correctCount || 0),
+        itemsSummary: String(itemsSummary || '')
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: synthesis
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
+

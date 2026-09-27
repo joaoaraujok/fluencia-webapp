@@ -22,7 +22,6 @@ import { EvaluationMode, EvaluationSession } from './types/evaluation';
 import { AppSettings, DEFAULT_SETTINGS } from './types/settings';
 import { getStoredSettings, saveStoredSettings } from './services/db';
 import { repository } from './services/repository';
-import { speechService } from './services/speechService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
@@ -77,12 +76,6 @@ const MainApp: React.FC = () => {
 
   // Preparar itens e ir para verificação do ambiente
   const prepareEvaluationFlow = async (mode: EvaluationMode) => {
-    if (!speechService.isSupported()) {
-      alert(
-        'Atenção: Seu navegador atual não possui suporte à Web Speech API.\nRecomendamos Google Chrome, Microsoft Edge ou Safari.'
-      );
-    }
-
     const items = await repository.getEvaluationQuestions(mode, settings.itemsPerLevel);
     if (!items || items.length === 0) {
       alert('Nenhum item pedagógico disponível para este nível no momento.');
@@ -190,6 +183,7 @@ const MainApp: React.FC = () => {
                 isMicListening={engine.isMicListening}
                 liveTranscript={engine.liveTranscript}
                 isSuccessFeedback={engine.isSuccessFeedback}
+                isAnalyzingAi={engine.isAnalyzingAi}
                 onCancel={handleCancelEvaluation}
                 onSkip={engine.skipCurrentItem}
                 onMarkResult={settings.educatorManualControls ? engine.markCurrentItemResult : undefined}

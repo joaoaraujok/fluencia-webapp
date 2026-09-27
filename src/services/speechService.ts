@@ -1,19 +1,17 @@
 /**
- * Camada de Abstração para Reconhecimento de Fala (SpeechRecognitionProvider).
- * Desacopla a regra de negócio da implementação do navegador e garante
- * isolamento estrito por item, baixa latência e métricas temporais minuciosas.
+ * Camada de Abstração para Reconhecimento e Captura de Fala (SpeechRecognitionProvider).
+ * Integrada 100% ao pipeline Groq Whisper Large v3 (STT) + Google Gemini (Análise Pedagógica).
+ * Totalmente desacoplada da Web Speech API nativa, garantindo suporte universal
+ * em qualquer navegador moderno via MediaRecorder e Web Audio API.
  */
 
 import { ProviderItemOptions, SpeechItemCapture, SpeechRecognitionProvider } from '../types/speech';
-
-interface IWindowSpeechRecognition extends Window {
-  SpeechRecognition?: any;
-  webkitSpeechRecognition?: any;
-}
+import { audioService } from './audioService';
+import { api } from './api';
 
 /**
  * Remove repetições consecutivas de palavras ou frases causadas por flutuação
- * do buffer da Web Speech API no Android e celulares.
+ * de buffers de captura de áudio.
  */
 export function deduplicateSpeechTranscript(text: string): string {
   if (!text) return '';
@@ -44,16 +42,12 @@ export function deduplicateSpeechTranscript(text: string): string {
   return step1.join(' ');
 }
 
-export class BrowserWebSpeechProvider implements SpeechRecognitionProvider {
-  public readonly id = 'browser-web-speech';
+export class GroqGeminiSpeechProvider implements SpeechRecognitionProvider {
+  public readonly id = 'groq-whisper-gemini';
 
-  private recognition: any | null = null;
   private isListening: boolean = false;
-  private backgroundStream: MediaStream | null = null;
-
-  // Estado da sessão e do item ativo
   private isSessionActive: boolean = false;
-  private isItemActive: boolean = false;
+  public isItemActive: boolean = false;
   private currentItemOptions?: ProviderItemOptions;
 
   // Métricas temporais detalhadas do item atual (10s)
@@ -63,17 +57,13 @@ export class BrowserWebSpeechProvider implements SpeechRecognitionProvider {
   private numberOfAttempts: number = 0;
   private currentItemTranscript: string = '';
   private currentItemConfidence: number = 1.0;
-  private hasMatchedCurrentItem: boolean = false;
 
   private onStateChangeCallback?: (isListening: boolean) => void;
   private onErrorCallback?: (err: string) => void;
-  private restartRecognitionTimeout: any = null;
-  private startItemTimeout: any = null;
 
   public isSupported(): boolean {
     if (typeof window === 'undefined') return false;
-    const win = window as unknown as IWindowSpeechRecognition;
-    return !!(win.SpeechRecognition || win.webkitSpeechRecognition);
+    return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   }
 
   public isSecureEnvironment(): boolean {
@@ -87,227 +77,76 @@ export class BrowserWebSpeechProvider implements SpeechRecognitionProvider {
     return this.isListening;
   }
 
-  private abortRecognitionOnly(): void {
-    if (this.restartRecognitionTimeout) {
-      clearTimeout(this.restartRecognitionTimeout);
-      this.restartRecognitionTimeout = null;
-    }
-    if (this.startItemTimeout) {
-      clearTimeout(this.startItemTimeout);
-      this.startItemTimeout = null;
-    }
-
-    if (this.recognition) {
-      try {
-        this.recognition.onend = null;
-        this.recognition.onerror = null;
-        this.recognition.onresult = null;
-        this.recognition.abort();
-      } catch {}
-      this.recognition = null;
-    }
-    this.isListening = false;
-  }
-
-  private createItemInstance(): any | null {
-    if (!this.isSupported()) return null;
-
-    try {
-      const win = window as unknown as IWindowSpeechRecognition;
-      const SpeechRecognitionClass = win.SpeechRecognition || win.webkitSpeechRecognition;
-      const rec = new SpeechRecognitionClass();
-
-      rec.lang = 'pt-BR';
-      // continuous configurável: false para palavras/letras rápidas, true para texto longo
-      rec.continuous = this.currentItemOptions?.continuous ?? false;
-      rec.interimResults = true;
-      rec.maxAlternatives = 4;
-
-      rec.onstart = () => {
-        this.isListening = true;
-        this.onStateChangeCallback?.(true);
-        console.log(`[FluencIA Áudio] Microfone ativo para o item: "${this.currentItemOptions?.expectedText || ''}"`);
-      };
-
-      rec.onaudiostart = () => {
-        console.log('[FluencIA Áudio] Sinal sonoro detectado');
-      };
-
-      rec.onresult = (event: any) => {
-        if (!event || !event.results || !this.isItemActive) return;
-
-        const now = Date.now();
-        if (this.speechStartTimestamp === null) {
-          this.speechStartTimestamp = now;
-        }
-        this.speechEndTimestamp = now;
-        this.numberOfAttempts++;
-
-        let consolidatedText = '';
-        let bestConfidence = 1.0;
-        const alternatives: string[] = [];
-
-        for (let i = 0; i < event.results.length; ++i) {
-          const res = event.results[i];
-          if (!res) continue;
-
-          for (let a = 0; a < res.length; ++a) {
-            const alt = res[a];
-            if (alt && alt.transcript) {
-              const cleanAlt = alt.transcript.trim();
-              if (cleanAlt && !alternatives.includes(cleanAlt)) {
-                alternatives.push(cleanAlt);
-              }
-            }
-          }
-
-          if (res[0] && res[0].transcript) {
-            const piece = res[0].transcript.trim();
-            if (piece) {
-              consolidatedText = consolidatedText ? `${consolidatedText} ${piece}` : piece;
-            }
-            if (res[0].confidence && res[0].confidence > 0) {
-              bestConfidence = res[0].confidence;
-            }
-          }
-        }
-
-        const cleaned = deduplicateSpeechTranscript(consolidatedText);
-        if (cleaned) {
-          this.currentItemTranscript = cleaned;
-          this.currentItemConfidence = bestConfidence;
-          this.currentItemOptions?.onTranscriptUpdate?.(cleaned, false);
-          console.log(`[FluencIA Áudio] Transcrição: "${cleaned}" (Confiança: ${bestConfidence})`, alternatives);
-        }
-
-        // Checagem imediata de match nas alternativas
-        if (!this.hasMatchedCurrentItem && this.currentItemOptions?.checkMatch && alternatives.length > 0) {
-          const matchResult = this.currentItemOptions.checkMatch(alternatives);
-          if (matchResult && matchResult.matched) {
-            this.hasMatchedCurrentItem = true;
-            this.currentItemTranscript = matchResult.transcript;
-            this.currentItemConfidence = matchResult.confidence ?? bestConfidence;
-            console.log(`[FluencIA Áudio] Match imediato reconhecido: "${matchResult.transcript}"`);
-            this.currentItemOptions.onMatch?.(matchResult.transcript, this.currentItemConfidence);
-          }
-        }
-      };
-
-      rec.onerror = (event: any) => {
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          console.warn('[FluencIA Áudio] Erro Web Speech:', event.error);
-        }
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
-          this.onErrorCallback?.(event.error);
-          this.isListening = false;
-          this.onStateChangeCallback?.(false);
-        }
-      };
-
-      rec.onend = () => {
-        this.isListening = false;
-        this.onStateChangeCallback?.(false);
-
-        // Se o item ainda estiver ativo na janela de tempo e a criança não concluiu, reinicia criando nova instância
-        if (this.isSessionActive && this.isItemActive && !this.hasMatchedCurrentItem) {
-          this.restartRecognitionForItem();
-        }
-      };
-
-      return rec;
-    } catch (err) {
-      console.error('Falha ao inicializar Web Speech API:', err);
-      return null;
-    }
-  }
-
   public async checkAndRequestPermission(): Promise<{
     granted: boolean;
     state: 'granted' | 'denied' | 'insecure_context' | 'not_supported' | 'error';
     message?: string;
   }> {
+    if (!this.isSupported()) {
+      return {
+        granted: false,
+        state: 'not_supported',
+        message: 'Navegador não possui suporte para captura de áudio (getUserMedia).'
+      };
+    }
+
     if (!this.isSecureEnvironment()) {
       return {
         granted: false,
         state: 'insecure_context',
-        message: 'O navegador bloqueia microfones em conexões HTTP. Utilize HTTPS ou localhost.'
+        message: 'Para usar o microfone em dispositivos móveis, é necessário conexão segura HTTPS ou localhost.'
       };
     }
 
     try {
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        stream.getTracks().forEach((track) => track.stop());
-        return { granted: true, state: 'granted' };
-      }
-      return {
-        granted: false,
-        state: 'not_supported',
-        message: 'Dispositivo ou API de microfone não encontrada.'
-      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      stream.getTracks().forEach((track) => track.stop());
+      return { granted: true, state: 'granted' };
     } catch (err: any) {
-      console.warn('Erro ao solicitar permissão de microfone:', err);
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         return {
           granted: false,
           state: 'denied',
-          message: 'Permissão de microfone negada. Libere nas configurações do navegador.'
+          message: 'Permissão de microfone bloqueada pelo usuário nas configurações do navegador.'
         };
       }
       return {
         granted: false,
         state: 'error',
-        message: err?.message || 'Falha ao solicitar microfone.'
+        message: err.message || 'Falha ao solicitar microfone.'
       };
     }
   }
 
-  public async requestMicrophonePermission(): Promise<boolean> {
-    const res = await this.checkAndRequestPermission();
-    return res.granted;
-  }
-
-  public startSession(
+  public async startSession(
     onStateChange?: (isListening: boolean) => void,
     onError?: (err: string) => void
-  ): boolean {
-    this.abort();
-    this.isSessionActive = true;
+  ): Promise<boolean> {
     this.onStateChangeCallback = onStateChange;
     this.onErrorCallback = onError;
-    return true;
-  }
+    this.isSessionActive = true;
 
-  private restartRecognitionForItem(): void {
-    if (this.restartRecognitionTimeout) {
-      clearTimeout(this.restartRecognitionTimeout);
-      this.restartRecognitionTimeout = null;
-    }
-
-    if (!this.isSessionActive || !this.isItemActive || this.hasMatchedCurrentItem) {
-      return;
-    }
-
-    this.abortRecognitionOnly();
-
-    this.restartRecognitionTimeout = setTimeout(() => {
-      if (!this.isSessionActive || !this.isItemActive || this.hasMatchedCurrentItem) {
-        return;
+    try {
+      const stream = await audioService.ensureMicStream();
+      if (!stream) {
+        throw new Error('Não foi possível obter o fluxo de áudio do microfone.');
       }
-      this.recognition = this.createItemInstance();
-      if (this.recognition) {
-        try {
-          this.recognition.start();
-        } catch (err) {
-          console.warn('Aviso ao reiniciar microfone:', err);
-        }
-      }
-    }, 60);
+      this.isListening = true;
+      this.onStateChangeCallback?.(true);
+      return true;
+    } catch (err: any) {
+      console.warn('[FluencIA Áudio] Aviso na sessão de microfone:', err);
+      this.onErrorCallback?.(err.message || 'Erro de microfone');
+      return false;
+    }
   }
 
   public prepareNextItem(options: ProviderItemOptions): void {
-    this.abortRecognitionOnly();
+    if (!this.isSessionActive) {
+      this.startSession(this.onStateChangeCallback, this.onErrorCallback);
+    }
 
+    this.currentItemOptions = options;
     this.isItemActive = true;
     this.itemStartTime = Date.now();
     this.speechStartTimestamp = null;
@@ -315,61 +154,29 @@ export class BrowserWebSpeechProvider implements SpeechRecognitionProvider {
     this.numberOfAttempts = 0;
     this.currentItemTranscript = '';
     this.currentItemConfidence = 1.0;
-    this.hasMatchedCurrentItem = false;
-    this.currentItemOptions = options;
-
-    // Pausa técnica mínima (35ms) para que o Chrome libere o hardware de áudio do abort() anterior
-    this.startItemTimeout = setTimeout(() => {
-      if (!this.isItemActive || this.hasMatchedCurrentItem) return;
-
-      this.recognition = this.createItemInstance();
-      if (this.recognition) {
-        try {
-          this.recognition.start();
-        } catch (_err) {
-          // Contingência: retenta após 80ms se o navegador ainda estiver ocupado
-          setTimeout(() => {
-            if (this.isItemActive && !this.hasMatchedCurrentItem && !this.isListening) {
-              try {
-                this.recognition = this.createItemInstance();
-                this.recognition?.start();
-              } catch (err2) {
-                console.warn('Retentativa do microfone para o item:', err2);
-              }
-            }
-          }, 80);
-        }
-      }
-    }, 35);
   }
 
   public consumeItemResult(): SpeechItemCapture {
-    const now = Date.now();
-    const durationMs = this.itemStartTime > 0 ? now - this.itemStartTime : 0;
-    const finalTranscript = (this.currentItemTranscript || '').trim();
-    const finalConfidence = this.currentItemConfidence;
-
+    const durationMs = this.itemStartTime > 0 ? Date.now() - this.itemStartTime : 0;
     const speechStartMs = this.speechStartTimestamp !== null ? this.speechStartTimestamp - this.itemStartTime : undefined;
     const speechEndMs = this.speechEndTimestamp !== null ? this.speechEndTimestamp - this.itemStartTime : undefined;
 
     this.isItemActive = false;
-    this.abortRecognitionOnly();
 
     const result: SpeechItemCapture = {
-      transcript: finalTranscript,
-      normalizedTranscript: finalTranscript.toUpperCase(),
-      confidence: finalConfidence,
+      transcript: this.currentItemTranscript,
+      normalizedTranscript: this.currentItemTranscript.toUpperCase(),
+      confidence: this.currentItemConfidence,
       responseTimeMs: durationMs,
       availableTimeMs: this.currentItemOptions?.availableTimeMs || 10000,
       speechStartMs,
       speechEndMs,
       numberOfAttempts: Math.max(1, this.numberOfAttempts),
-      recognitionQuality: finalConfidence > 0.7 ? 'good' : finalConfidence > 0.3 ? 'poor' : 'noisy',
+      recognitionQuality: 'good',
       provider: this.id
     };
 
     this.currentItemOptions = undefined;
-    this.hasMatchedCurrentItem = false;
     this.currentItemTranscript = '';
 
     return result;
@@ -378,64 +185,60 @@ export class BrowserWebSpeechProvider implements SpeechRecognitionProvider {
   public stopSession(): void {
     this.isSessionActive = false;
     this.isItemActive = false;
-    this.abort();
-  }
-
-  public abort(): void {
-    this.isSessionActive = false;
-    this.isItemActive = false;
-    this.currentItemOptions = undefined;
-    this.hasMatchedCurrentItem = false;
-    this.currentItemTranscript = '';
-
-    this.abortRecognitionOnly();
-
-    if (this.backgroundStream) {
-      try {
-        this.backgroundStream.getTracks().forEach((t) => t.stop());
-      } catch {}
-      this.backgroundStream = null;
-    }
-
     this.isListening = false;
+    this.currentItemOptions = undefined;
+    audioService.stopMicMonitoring();
     this.onStateChangeCallback?.(false);
   }
 
-  // Compatibilidade com a API anterior
-  public startEvaluationSession(
-    onState?: (isListening: boolean) => void,
-    onError?: (err: string) => void
-  ): boolean {
-    return this.startSession(onState, onError);
-  }
-
-  public stopEvaluationSession(): void {
+  public abort(): void {
     this.stopSession();
   }
 
-  public startListening(
-    onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void,
+  // Compatibilidade com telas auxiliares (EnvironmentCheck, SettingsModal)
+  public async startListening(
+    _onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void,
     onStateChange?: (isListening: boolean) => void,
     onError?: (err: string) => void
-  ): boolean {
-    this.startSession(onStateChange, onError);
-    this.prepareNextItem({
-      onTranscriptUpdate,
-      availableTimeMs: 30000
-    });
+  ): Promise<boolean> {
+    await this.startSession(onStateChange, onError);
+    audioService.startItemRecording();
     return true;
   }
 
   public async stopListening(): Promise<{ transcript: string; confidence: number; durationMs: number }> {
-    const res = this.consumeItemResult();
+    const durationMs = this.itemStartTime > 0 ? Date.now() - this.itemStartTime : 1000;
+    let transcript = '';
+    let confidence = 1.0;
+
+    try {
+      const audioBlob = await audioService.stopItemRecording();
+      if (audioBlob && audioBlob.size > 100) {
+        const formData = new FormData();
+        const extension = audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+        formData.append('audioFile', audioBlob, `test_${Date.now()}.${extension}`);
+        formData.append('targetText', 'TESTE');
+        formData.append('itemType', 'word');
+
+        const aiRes = await api.analyzeAudioItem(formData);
+        if (aiRes) {
+          transcript = aiRes.transcript || '';
+          confidence = aiRes.similarity ?? 1.0;
+        }
+      }
+    } catch (err) {
+      console.warn('[SpeechService] Teste de áudio Groq Whisper offline ou inatingível:', err);
+    }
+
     this.stopSession();
     return {
-      transcript: res.transcript,
-      confidence: res.confidence,
-      durationMs: res.responseTimeMs
+      transcript,
+      confidence,
+      durationMs
     };
   }
 }
 
-// Instância padrão exportada
-export const speechService = new BrowserWebSpeechProvider();
+// Exportações para compatibilidade estrita
+export const BrowserWebSpeechProvider = GroqGeminiSpeechProvider;
+export const speechService = new GroqGeminiSpeechProvider();

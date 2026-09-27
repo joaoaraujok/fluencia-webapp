@@ -21,6 +21,7 @@ import { AppSettings, FontSizeSetting, SpeechToleranceSetting, DEFAULT_SETTINGS 
 import { clearAllEvaluations } from '../../services/db';
 import { speechService } from '../../services/speechService';
 import { audioService } from '../../services/audioService';
+import { api } from '../../services/api';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -154,17 +155,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleToggleMicTest = async () => {
     if (micTesting) {
       audioService.stopMicMonitoring();
-      speechService.stopListening();
       setMicTesting(false);
       setMicVolume(0);
+      setMicHeard('Processando áudio com Groq Whisper & Gemini...');
+
+      try {
+        const audioBlob = await audioService.stopItemRecording();
+        if (audioBlob && audioBlob.size > 100) {
+          const formData = new FormData();
+          const extension = audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+          formData.append('audioFile', audioBlob, `test_settings_${Date.now()}.${extension}`);
+          formData.append('targetText', 'TESTE');
+          formData.append('itemType', 'word');
+
+          const aiRes = await api.analyzeAudioItem(formData);
+          if (aiRes) {
+            setMicHeard(`Groq Whisper: "${aiRes.transcript || '(silêncio)'}" (Gemini: ${aiRes.status})`);
+          }
+        } else {
+          setMicHeard('Nenhum áudio detectado.');
+        }
+      } catch (err) {
+        console.warn('Erro ao testar microfone com Groq/Gemini:', err);
+        setMicError('Falha ao conectar com o pipeline de IA (Groq Whisper / Gemini).');
+      }
       return;
     }
 
     setMicError(null);
-    setMicHeard('');
+    setMicHeard('Gravando... Fale algo e clique novamente para transcrever com Groq Whisper.');
     setMicVolume(0);
 
-    // 1. Inicia monitoramento de decibéis/volume da voz em tempo real
     const monitorResult = await audioService.startMicMonitoring((volume) => {
       setMicVolume(volume);
     });
@@ -174,28 +195,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
+    await audioService.ensureMicStream();
+    audioService.startItemRecording();
     setMicTesting(true);
-
-    // 2. Inicia reconhecimento de fala simultâneo
-    speechService.startListening(
-      (transcript) => {
-        setMicHeard(transcript);
-      },
-      (listening) => {
-        if (!listening && !micTesting) {
-          audioService.stopMicMonitoring();
-          setMicTesting(false);
-        }
-      },
-      (err) => {
-        console.warn('Erro de reconhecimento durante teste:', err);
-        if (err === 'not-allowed') {
-          setMicError('Acesso ao microfone bloqueado no navegador.');
-          audioService.stopMicMonitoring();
-          setMicTesting(false);
-        }
-      }
-    );
   };
 
   const handleClearHistory = async () => {

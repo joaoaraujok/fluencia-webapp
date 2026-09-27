@@ -147,6 +147,28 @@ class AudioService {
   private analyser: AnalyserNode | null = null;
   private animFrameId: number | null = null;
   private isMonitoring: boolean = false;
+  private volumeCallback: ((volumePercent: number) => void) | null = null;
+
+  /**
+   * Conecta os nós da Web Audio API apenas uma vez por MediaStream para evitar o bug do Chromium
+   * onde reconectar createMediaStreamSource silencia o microfone (RMS = 0).
+   */
+  private setupAudioNodes(ctx: AudioContext, stream: MediaStream): boolean {
+    if (this.micSource && this.analyser) {
+      return true;
+    }
+    try {
+      this.micSource = ctx.createMediaStreamSource(stream);
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.3;
+      this.micSource.connect(this.analyser);
+      return true;
+    } catch (err) {
+      console.warn('[AudioService] Erro ao configurar nós de áudio do microfone:', err);
+      return false;
+    }
+  }
 
   /**
    * Inicia a captura e análise contínua de volume do microfone
@@ -154,7 +176,7 @@ class AudioService {
   public async startMicMonitoring(
     onVolumeChange: (volumePercent: number) => void
   ): Promise<{ success: boolean; error?: string }> {
-    this.stopMicMonitoring();
+    this.volumeCallback = onVolumeChange;
 
     const ctx = this.getContext();
     if (!ctx) {
@@ -162,34 +184,26 @@ class AudioService {
     }
 
     try {
-      let stream: MediaStream | null = null;
-
-      if (navigator.mediaDevices?.getUserMedia) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      } else {
-        const legacyGetUserMedia =
-          (navigator as any).webkitGetUserMedia ||
-          (navigator as any).mozGetUserMedia ||
-          (navigator as any).msGetUserMedia;
-        if (legacyGetUserMedia) {
-          stream = await new Promise<MediaStream>((resolve, reject) => {
-            legacyGetUserMedia.call(navigator, { audio: true }, resolve, reject);
-          });
-        }
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
       }
 
+      const stream = await this.ensureMicStream();
       if (!stream) {
         return { success: false, error: 'Dispositivo de microfone não encontrado ou contexto não seguro.' };
       }
 
-      this.micStream = stream;
-      this.micSource = ctx.createMediaStreamSource(stream);
-      this.analyser = ctx.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.4;
-
-      this.micSource.connect(this.analyser);
+      this.setupAudioNodes(ctx, stream);
       this.isMonitoring = true;
+
+      if (this.animFrameId !== null) {
+        cancelAnimationFrame(this.animFrameId);
+        this.animFrameId = null;
+      }
+
+      if (!this.analyser) {
+        return { success: false, error: 'Falha ao inicializar o analisador de frequências.' };
+      }
 
       const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
@@ -206,9 +220,11 @@ class AudioService {
         }
 
         const rms = Math.sqrt(sumSquares / dataArray.length);
-        // Mapeia para 0 - 100% com sensibilidade calibrada para voz humana normal
-        const volumePercent = Math.min(100, Math.round(rms * 280));
-        onVolumeChange(volumePercent);
+        // Mapeia para 0 - 100% com sensibilidade adequada para voz humana e microfones padrão
+        const volumePercent = Math.min(100, Math.round(rms * 400));
+        if (this.volumeCallback) {
+          this.volumeCallback(volumePercent);
+        }
 
         this.animFrameId = requestAnimationFrame(checkVolume);
       };
@@ -230,15 +246,24 @@ class AudioService {
   }
 
   /**
-   * Encerra o monitoramento de microfone e libera o hardware
+   * Encerra a leitura dos decibéis entre itens SEM desconectar os nós da Web Audio API.
+   * Isso previne a perda de sinal do microfone no Chrome.
    */
   public stopMicMonitoring(): void {
     this.isMonitoring = false;
+    this.volumeCallback = null;
 
     if (this.animFrameId !== null) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
+  }
+
+  /**
+   * Libera completamente o hardware do microfone e desconecta os nós de áudio (ao sair do app ou finalizar sessão)
+   */
+  public releaseMic(): void {
+    this.stopMicMonitoring();
 
     if (this.micSource) {
       try {
@@ -262,6 +287,151 @@ class AudioService {
       });
       this.micStream = null;
     }
+  }
+
+  // ==========================================
+  // Gravação de Áudio por Item com MediaRecorder
+  // ==========================================
+  private itemMediaRecorder: MediaRecorder | null = null;
+  private itemAudioChunks: Blob[] = [];
+  private itemRecordingPromiseResolve: ((blob: Blob) => void) | null = null;
+
+  public getMicStream(): MediaStream | null {
+    return this.micStream;
+  }
+
+  /**
+   * Garante a disponibilidade do stream de microfone para gravação
+   */
+  public async ensureMicStream(): Promise<MediaStream | null> {
+    const hasLiveTracks = this.micStream && this.micStream.active && this.micStream.getTracks().some((t) => t.readyState === 'live');
+    if (hasLiveTracks) {
+      return this.micStream;
+    }
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        return this.micStream;
+      }
+    } catch (err) {
+      console.warn('Não foi possível obter MediaStream para gravação:', err);
+    }
+    return null;
+  }
+
+  /**
+   * Inicia a gravação em formato WebM/Opus do áudio emitido durante o item
+   */
+  public startItemRecording(stream?: MediaStream): void {
+    if (this.itemMediaRecorder && this.itemMediaRecorder.state !== 'inactive') {
+      try {
+        this.itemMediaRecorder.stop();
+      } catch {}
+    }
+    this.itemAudioChunks = [];
+
+    const activeStream = stream || this.micStream;
+    if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined' || !activeStream) {
+      return;
+    }
+
+    try {
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+          mimeType = 'audio/ogg;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else {
+          mimeType = '';
+        }
+      }
+
+      const options: MediaRecorderOptions | undefined = mimeType ? { mimeType } : undefined;
+      this.itemMediaRecorder = new MediaRecorder(activeStream, options);
+
+      this.itemMediaRecorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          this.itemAudioChunks.push(event.data);
+        }
+      };
+
+      this.itemMediaRecorder.onstop = () => {
+        const resolvedBlob = new Blob(this.itemAudioChunks, {
+          type: this.itemMediaRecorder?.mimeType || 'audio/webm'
+        });
+        if (this.itemRecordingPromiseResolve) {
+          this.itemRecordingPromiseResolve(resolvedBlob);
+          this.itemRecordingPromiseResolve = null;
+        }
+      };
+
+      this.itemMediaRecorder.start(100);
+    } catch (err) {
+      console.warn('Falha ao inicializar MediaRecorder para o item:', err);
+    }
+  }
+
+  /**
+   * Finaliza a gravação do item e retorna o Blob de áudio resultante com proteção de timeout
+   */
+  public stopItemRecording(): Promise<Blob> {
+    return new Promise<Blob>((resolve) => {
+      if (!this.itemMediaRecorder || this.itemMediaRecorder.state === 'inactive') {
+        const fallbackBlob = new Blob(this.itemAudioChunks, { type: 'audio/webm' });
+        resolve(fallbackBlob);
+        return;
+      }
+
+      let isResolved = false;
+      const safeResolve = (blob: Blob) => {
+        if (!isResolved) {
+          isResolved = true;
+          this.itemRecordingPromiseResolve = null;
+          resolve(blob);
+        }
+      };
+
+      this.itemRecordingPromiseResolve = safeResolve;
+
+      const recorder = this.itemMediaRecorder;
+      // Timeout de segurança caso o navegador atrase a emissão do evento onstop
+      const timerId = window.setTimeout(() => {
+        const fallbackBlob = new Blob(this.itemAudioChunks, {
+          type: recorder.mimeType || 'audio/webm'
+        });
+        safeResolve(fallbackBlob);
+      }, 400);
+
+      const prevOnStop = recorder.onstop;
+      recorder.onstop = (ev) => {
+        window.clearTimeout(timerId);
+        if (prevOnStop) {
+          prevOnStop.call(recorder, ev);
+        } else {
+          const resolvedBlob = new Blob(this.itemAudioChunks, {
+            type: recorder.mimeType || 'audio/webm'
+          });
+          safeResolve(resolvedBlob);
+        }
+      };
+
+      try {
+        recorder.stop();
+      } catch (err) {
+        console.warn('Aviso ao finalizar gravação do item:', err);
+        window.clearTimeout(timerId);
+        const fallbackBlob = new Blob(this.itemAudioChunks, { type: 'audio/webm' });
+        safeResolve(fallbackBlob);
+      }
+    });
+  }
+
+  public isItemRecording(): boolean {
+    return this.itemMediaRecorder !== null && this.itemMediaRecorder.state === 'recording';
   }
 }
 

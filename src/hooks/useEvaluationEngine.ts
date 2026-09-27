@@ -12,8 +12,10 @@ import {
 import { audioService } from '../services/audioService';
 import { repository } from '../services/repository';
 import { speechService } from '../services/speechService';
+import { api } from '../services/api';
 import { Student } from '../types/school';
 import { ChildProfile } from '../types/child';
+import { RecognitionStatus } from '../types/speech';
 import {
   AdaptiveEvaluationStage,
   DifficultyLevel,
@@ -61,6 +63,7 @@ export function useEvaluationEngine({
   const [liveTranscript, setLiveTranscript] = useState<string>('');
   const [evaluatedItems, setEvaluatedItems] = useState<EvaluationItemResult[]>([]);
   const [isSuccessFeedback, setIsSuccessFeedback] = useState<boolean>(false);
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState<boolean>(false);
 
   // Sincronização de estado para callbacks e eventos assíncronos
   const currentStageRef = useRef<AdaptiveEvaluationStage>('letters');
@@ -75,6 +78,10 @@ export function useEvaluationEngine({
   const itemStartTimestampRef = useRef<number>(0);
   const globalStartTimeRef = useRef<number>(0);
   const isGlobalTimeLimitReachedRef = useRef<boolean>(false);
+  const isGlobalTimerPausedRef = useRef<boolean>(false);
+  const pauseGlobalTimerStartRef = useRef<number>(0);
+  const intentionalSpeechDetectedRef = useRef<boolean>(false);
+  const lastSpeechTimestampRef = useRef<number>(0);
 
   // Cache para relatórios das etapas concluídas
   const textReportRef = useRef<TextReportMetrics | undefined>(undefined);
@@ -153,7 +160,8 @@ export function useEvaluationEngine({
     setPhase('preparing');
     audioService.setEnabled(settings.soundEnabled);
 
-    // Pré-aquecimento do microfone
+    // Pré-aquecimento do microfone e gravação por item
+    audioService.ensureMicStream().catch(() => {});
     speechService.startSession(
       (listening) => setIsMicListening(listening),
       (err) => console.warn('Aviso do microfone na sessão:', err)
@@ -185,12 +193,15 @@ export function useEvaluationEngine({
    */
   const startGlobalTimer = () => {
     globalStartTimeRef.current = Date.now();
+    isGlobalTimerPausedRef.current = false;
+    pauseGlobalTimerStartRef.current = 0;
     if (globalTimerRef.current) {
       clearInterval(globalTimerRef.current);
     }
 
     globalTimerRef.current = window.setInterval(() => {
-      const elapsedMs = Date.now() - globalStartTimeRef.current;
+      if (isGlobalTimerPausedRef.current) return;
+      const elapsedMs = Math.max(0, Date.now() - globalStartTimeRef.current);
       const elapsedSec = Math.floor(elapsedMs / 1000);
       setGlobalElapsedSeconds(elapsedSec);
 
@@ -206,6 +217,62 @@ export function useEvaluationEngine({
         finishEvaluation(true);
       }
     }, 200);
+  };
+
+  /**
+   * Pausa o tempo decorrido global no momento em que o áudio é enviado para análise de IA.
+   */
+  const pauseGlobalTimer = () => {
+    if (globalTimerRef.current) {
+      clearInterval(globalTimerRef.current);
+      globalTimerRef.current = null;
+    }
+    if (!isGlobalTimerPausedRef.current) {
+      isGlobalTimerPausedRef.current = true;
+      pauseGlobalTimerStartRef.current = Date.now();
+    }
+  };
+
+  /**
+   * Retoma o cronômetro global descontando:
+   * 1. O tempo de latência de rede/processamento da IA (tempo pausado).
+   * 2. O tempo de silêncio (3s de espera sem som) para que a quantidade de palavras por minuto seja exata.
+   */
+  const resumeGlobalTimer = (deductSilenceMs: number = 0) => {
+    let pauseDurationMs = 0;
+    if (isGlobalTimerPausedRef.current) {
+      pauseDurationMs = Math.max(0, Date.now() - pauseGlobalTimerStartRef.current);
+      isGlobalTimerPausedRef.current = false;
+    }
+
+    const totalDeductionMs = pauseDurationMs + Math.max(0, deductSilenceMs);
+    globalStartTimeRef.current += totalDeductionMs;
+
+    const currentElapsedMs = Math.max(0, Date.now() - globalStartTimeRef.current);
+    const currentElapsedSec = Math.floor(currentElapsedMs / 1000);
+    setGlobalElapsedSeconds(currentElapsedSec);
+
+    const maxGlobalSec = settings.globalTimeLimitSec ?? 240;
+    if (currentElapsedSec < maxGlobalSec && !isGlobalTimeLimitReachedRef.current) {
+      if (globalTimerRef.current) {
+        clearInterval(globalTimerRef.current);
+      }
+      globalTimerRef.current = window.setInterval(() => {
+        if (isGlobalTimerPausedRef.current) return;
+        const elapsedMs = Math.max(0, Date.now() - globalStartTimeRef.current);
+        const elapsedSec = Math.floor(elapsedMs / 1000);
+        setGlobalElapsedSeconds(elapsedSec);
+
+        if (elapsedSec >= maxGlobalSec) {
+          if (globalTimerRef.current) {
+            clearInterval(globalTimerRef.current);
+            globalTimerRef.current = null;
+          }
+          isGlobalTimeLimitReachedRef.current = true;
+          finishEvaluation(true);
+        }
+      }, 200);
+    }
   };
 
   const startItem = (index: number, currentList: QuestionItem[]) => {
@@ -237,82 +304,63 @@ export function useEvaluationEngine({
     itemStartTimestampRef.current = startTime;
     const durationMs = duration * 1000;
 
-    const triggerImmediateSuccess = (matchedTranscript: string, confidence: number) => {
-      if (isTransitioningRef.current) return;
-      isTransitioningRef.current = true;
-      setIsSuccessFeedback(true);
+    // Inicia a gravação com MediaRecorder para captura de áudio da emissão da criança
+    audioService.startItemRecording();
 
-      if (postSpeechTimeoutRef.current) {
-        clearTimeout(postSpeechTimeoutRef.current);
-        postSpeechTimeoutRef.current = null;
-      }
-
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-
-      setLiveTranscript(matchedTranscript);
-      const elapsed = Date.now() - startTime;
-
-      window.setTimeout(async () => {
-        await completeCurrentItem(index, item, elapsed, matchedTranscript, confidence, false);
-      }, 250);
-    };
-
-    // Prepara microfone para o item
+    // Configura o item de escuta
     speechService.prepareNextItem({
       expectedText: item.text,
       availableTimeMs: durationMs,
-      continuous: item.type === 'text',
-      onTranscriptUpdate: (transcript) => {
-        setLiveTranscript(transcript);
+      continuous: item.type === 'text'
+    });
 
-        if (transcript && !isTransitioningRef.current && settings.autoAdvance && item.type !== 'text') {
-          const quickCheck = compareSpeech(item, transcript, 1.0, false, {
-            phoneticSupportEnabled: settings.phoneticSupportEnabled,
-            speechTolerance: settings.speechTolerance
-          });
-          if (quickCheck.status === 'CORRETO' || quickCheck.status === 'POSSIVELMENTE_CORRETO') {
-            triggerImmediateSuccess(item.text.toLowerCase(), 1.0);
-            return;
-          }
+    let consecutiveSpeechFrames = 0;
+    intentionalSpeechDetectedRef.current = false;
+    lastSpeechTimestampRef.current = 0;
 
-          // Se a criança falou algo mas ainda não deu acerto, permite tolerância para autocorreção
-          // (2000ms para letras, 1200ms para palavras e frases)
+    audioService.startMicMonitoring((vol) => {
+      const now = Date.now();
+      const elapsedMs = now - startTime;
+
+      // Ignora os primeiros 300ms para evitar captura de cliques ou ruídos de transição
+      if (elapsedMs < 300) return;
+
+      if (vol >= 8) {
+        consecutiveSpeechFrames++;
+        if (consecutiveSpeechFrames >= 2) {
+          intentionalSpeechDetectedRef.current = true;
+          lastSpeechTimestampRef.current = now;
+          setLiveTranscript(item.type === 'text' ? 'Gravando leitura da historinha...' : 'Gravando voz da criança...');
           if (postSpeechTimeoutRef.current) {
             clearTimeout(postSpeechTimeoutRef.current);
-          }
-          const postTimeoutMs = item.type === 'letter' ? 2000 : 1200;
-          postSpeechTimeoutRef.current = window.setTimeout(async () => {
-            if (!isTransitioningRef.current) {
-              isTransitioningRef.current = true;
-              if (timerIntervalRef.current) {
-                clearInterval(timerIntervalRef.current);
-                timerIntervalRef.current = null;
-              }
-              const elapsed = Date.now() - startTime;
-              await completeCurrentItem(index, item, elapsed, undefined, undefined, false);
-            }
-          }, postTimeoutMs);
-        }
-      },
-      onMatch: (_matchedTranscript, confidence) => {
-        if (settings.autoAdvance && item.type !== 'text') {
-          triggerImmediateSuccess(item.text.toLowerCase(), confidence);
-        }
-      },
-      checkMatch: (alternatives) => {
-        for (const alt of alternatives) {
-          const check = compareSpeech(item, alt, 1.0, false, {
-            phoneticSupportEnabled: settings.phoneticSupportEnabled,
-            speechTolerance: settings.speechTolerance
-          });
-          if (check.status === 'CORRETO' || check.status === 'POSSIVELMENTE_CORRETO') {
-            return { matched: true, transcript: item.text.toLowerCase(), confidence: 1.0 };
+            postSpeechTimeoutRef.current = null;
           }
         }
-        return null;
+      } else {
+        consecutiveSpeechFrames = 0;
+        // Espera 3.0 segundos de silêncio para garantir que a criança não fez apenas uma pausa (válido para letras, palavras e historinha)
+        if (
+          intentionalSpeechDetectedRef.current &&
+          !isTransitioningRef.current &&
+          settings.autoAdvance &&
+          elapsedMs >= 2000 &&
+          now - lastSpeechTimestampRef.current >= 3000
+        ) {
+          isTransitioningRef.current = true;
+          audioService.stopMicMonitoring();
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          if (postSpeechTimeoutRef.current) {
+            clearTimeout(postSpeechTimeoutRef.current);
+            postSpeechTimeoutRef.current = null;
+          }
+
+          const rawElapsed = Date.now() - startTime;
+          const silenceDuration = 3000; // Exatamente 3.0s de silêncio aguardado
+          completeCurrentItem(index, item, rawElapsed, undefined, undefined, false, silenceDuration);
+        }
       }
     });
 
@@ -325,7 +373,7 @@ export function useEvaluationEngine({
       const remaining = Math.max(0, (durationMs - elapsed) / 1000);
       setTimeRemainingSec(remaining);
 
-      // Limite máximo atingido do item (10s para letras/palavras, 15s para frases)
+      // Limite máximo atingido do item (10s para letras/palavras, 60s para texto)
       if (remaining <= 0) {
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
@@ -337,7 +385,12 @@ export function useEvaluationEngine({
         }
         if (!isTransitioningRef.current) {
           isTransitioningRef.current = true;
-          await completeCurrentItem(index, item, durationMs, undefined, undefined, true);
+          audioService.stopMicMonitoring();
+          const rawElapsed = durationMs;
+          const silenceDuration = (intentionalSpeechDetectedRef.current && lastSpeechTimestampRef.current > 0)
+            ? Math.min(3000, Math.max(0, (startTime + durationMs) - lastSpeechTimestampRef.current))
+            : 0;
+          await completeCurrentItem(index, item, rawElapsed, undefined, undefined, true, silenceDuration);
         }
       }
     }, 100);
@@ -349,27 +402,82 @@ export function useEvaluationEngine({
     plannedDurationMs: number,
     explicitTranscript?: string,
     explicitConfidence?: number,
-    isTimeLimitReached: boolean = false
+    isTimeLimitReached: boolean = false,
+    silenceWaitMs: number = 0
   ) => {
+    // 1. Pausa o cronômetro decorrido global imediatamente quando o áudio é enviado para a IA
+    pauseGlobalTimer();
+    setIsAnalyzingAi(true);
+
+    // 2. Finaliza a gravação do áudio do item atual com MediaRecorder
+    let audioBlob: Blob | null = null;
+    try {
+      audioBlob = await audioService.stopItemRecording();
+    } catch (recErr) {
+      console.warn('[FluencIA] Aviso ao finalizar gravação do item:', recErr);
+    }
+    audioService.stopMicMonitoring();
+
+    // 3. Coleta métricas da Web Speech API (fallback / medição de latência)
     const captured = speechService.consumeItemResult();
 
-    const transcript = explicitTranscript !== undefined ? explicitTranscript : captured.transcript;
-    const confidence = explicitConfidence !== undefined ? explicitConfidence : captured.confidence;
-    const responseTimeMs = captured.responseTimeMs || plannedDurationMs;
+    const localTranscript = explicitTranscript !== undefined ? explicitTranscript : captured.transcript;
+    const localConfidence = explicitConfidence !== undefined ? explicitConfidence : captured.confidence;
+
+    // Desconta o tempo de silêncio (3s) aguardado após a fala para correção precisa de PPM
+    const rawResponseTimeMs = captured.responseTimeMs || plannedDurationMs;
+    const responseTimeMs = Math.max(200, rawResponseTimeMs - silenceWaitMs);
 
     // Métricas temporais rigorosas (Regra 5)
     const presentationTimeMs = itemStartTimestampRef.current;
     const speechStartMs = captured.speechStartMs;
-    const speechEndMs = captured.speechEndMs;
+    const speechEndMs = captured.speechEndMs
+      ? Math.min(captured.speechEndMs, presentationTimeMs + responseTimeMs)
+      : (presentationTimeMs + responseTimeMs);
     const reactionTimeMs = speechStartMs ? Math.max(0, speechStartMs - presentationTimeMs) : responseTimeMs;
-    const speechDurationMs = speechStartMs && speechEndMs ? Math.max(0, speechEndMs - speechStartMs) : 0;
+    const speechDurationMs = speechStartMs ? Math.max(0, speechEndMs - speechStartMs) : responseTimeMs;
     const totalTimeMs = reactionTimeMs + speechDurationMs;
 
-    // Avaliação pedagógica por tipo de item
+    // 3. Pipeline de IA Fonética (Groq Whisper Large v3 + Google Gemini 3.8 Flash)
+    let finalTranscript = localTranscript;
+    let finalStatus: RecognitionStatus | null = null;
+    let similarity: number | undefined = undefined;
+    let observedError: string | undefined = undefined;
+    let phonemeFindings: string[] = [];
+    let pedagogicalNote: string | undefined = undefined;
+    let provider = captured.provider;
+    let isAiAnalyzed = false;
+
+    if (audioBlob && audioBlob.size > 100) {
+      try {
+        const formData = new FormData();
+        const extension = audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+        formData.append('audioFile', audioBlob, `item_${itemIndex}_${Date.now()}.${extension}`);
+        formData.append('targetText', item.text);
+        formData.append('itemType', item.type);
+
+        const aiResponse = await api.analyzeAudioItem(formData);
+        if (aiResponse && aiResponse.status) {
+          finalTranscript = aiResponse.transcript || localTranscript;
+          finalStatus = aiResponse.status as RecognitionStatus;
+          similarity = aiResponse.similarity;
+          observedError = aiResponse.observedError;
+          phonemeFindings = aiResponse.phonemeFindings || [];
+          pedagogicalNote = aiResponse.pedagogicalNote;
+          provider = 'groq-whisper-v3 + gemini-3.8-flash';
+          isAiAnalyzed = true;
+          setLiveTranscript(finalTranscript || localTranscript);
+        }
+      } catch (aiErr) {
+        console.warn('[FluencIA] API de IA offline ou inatingível. Aplicando contingência com análise fonética local:', aiErr);
+      }
+    }
+
+    // 4. Avaliação pedagógica estruturada do item
     let itemResult: EvaluationItemResult;
 
     if (item.type === 'text') {
-      const textAnalysis = compareTextReading(item.text, transcript, responseTimeMs / 1000);
+      const textAnalysis = compareTextReading(item.text, finalTranscript, responseTimeMs / 1000);
       textReportRef.current = {
         evaluated: true,
         textTitle: item.category || 'História Infantil',
@@ -389,6 +497,8 @@ export function useEvaluationEngine({
         isFluentEligible: textAnalysis.isFluentEligible
       };
 
+      const resolvedStatus = finalStatus || (textAnalysis.accuracy >= 85 ? 'CORRETO' : textAnalysis.accuracy >= 50 ? 'POSSIVELMENTE_CORRETO' : 'INCORRETO');
+
       itemResult = {
         questionId: item.id,
         targetText: item.text,
@@ -397,9 +507,9 @@ export function useEvaluationEngine({
         stage: currentStageRef.current,
         syllableStructure: item.syllableStructure,
         category: item.category,
-        transcript,
-        normalizedTranscript: transcript,
-        status: textAnalysis.accuracy >= 85 ? 'CORRETO' : textAnalysis.accuracy >= 50 ? 'POSSIVELMENTE_CORRETO' : 'INCORRETO',
+        transcript: finalTranscript,
+        normalizedTranscript: finalTranscript,
+        status: resolvedStatus,
         presentationTimeMs,
         speechStartMs,
         speechEndMs,
@@ -408,20 +518,42 @@ export function useEvaluationEngine({
         totalTimeMs,
         responseTimeMs,
         availableTimeMs: 60000,
-        confidence,
-        confidenceNote: confidence < 0.65 ? 'Indeterminada — baixa confiança' : undefined,
+        confidence: isAiAnalyzed ? (similarity ?? 1.0) : localConfidence,
+        confidenceNote: (!isAiAnalyzed && localConfidence < 0.65) ? 'Indeterminada — baixa confiança' : undefined,
         isTimeLimitReached,
-        observedError: textAnalysis.accuracy < 85 ? `Precisão textual de ${textAnalysis.accuracy}%` : undefined
+        observedError: observedError || (textAnalysis.accuracy < 85 ? `Precisão textual de ${textAnalysis.accuracy}%` : undefined),
+        phonemeFindings,
+        pedagogicalNote,
+        provider
       };
     } else {
-      const comparison = compareSpeech(item, transcript, confidence, false, {
-        phoneticSupportEnabled: settings.phoneticSupportEnabled,
-        speechTolerance: settings.speechTolerance
-      });
+      let displayTranscript = finalTranscript;
+      let resolvedStatus: RecognitionStatus;
+      let comparisonPhonemeFindings: string[] = [];
+      let comparisonObservedError: string | undefined = undefined;
 
-      let displayTranscript = transcript || comparison.normalizedTranscript;
-      if (comparison.status === 'CORRETO' && item.type === 'word') {
-        displayTranscript = item.text.toLowerCase();
+      if (isAiAnalyzed && finalStatus) {
+        resolvedStatus = finalStatus;
+        if (resolvedStatus === 'CORRETO' && item.type === 'letter') {
+          displayTranscript = item.text;
+        } else if (resolvedStatus === 'CORRETO' && item.type === 'word') {
+          displayTranscript = item.text.toLowerCase();
+        }
+      } else {
+        const comparison = compareSpeech(item, finalTranscript, localConfidence, false, {
+          phoneticSupportEnabled: settings.phoneticSupportEnabled,
+          speechTolerance: settings.speechTolerance
+        });
+        if (comparison.status === 'CORRETO' && item.type === 'word') {
+          displayTranscript = item.text.toLowerCase();
+        } else if (comparison.status === 'CORRETO' && item.type === 'letter') {
+          displayTranscript = item.text;
+        } else {
+          displayTranscript = finalTranscript || comparison.normalizedTranscript;
+        }
+        resolvedStatus = comparison.status;
+        comparisonPhonemeFindings = comparison.phonemeFindings || [];
+        comparisonObservedError = comparison.observedError;
       }
 
       itemResult = {
@@ -433,8 +565,8 @@ export function useEvaluationEngine({
         syllableStructure: item.syllableStructure,
         category: item.category,
         transcript: displayTranscript,
-        normalizedTranscript: comparison.normalizedTranscript,
-        status: comparison.status,
+        normalizedTranscript: finalTranscript.toUpperCase(),
+        status: resolvedStatus,
         presentationTimeMs,
         speechStartMs,
         speechEndMs,
@@ -443,13 +575,14 @@ export function useEvaluationEngine({
         totalTimeMs,
         responseTimeMs,
         availableTimeMs: item.type === 'phrase' ? 15000 : 10000,
-        confidence,
-        confidenceNote: confidence < 0.65 ? 'Indeterminada — baixa confiança' : undefined,
+        confidence: isAiAnalyzed ? (similarity ?? 1.0) : localConfidence,
+        confidenceNote: (!isAiAnalyzed && localConfidence < 0.65) ? 'Indeterminada — baixa confiança' : undefined,
         numberOfAttempts: captured.numberOfAttempts,
         recognitionQuality: captured.recognitionQuality,
-        provider: captured.provider,
-        phonemeFindings: comparison.phonemeFindings,
-        observedError: comparison.observedError,
+        provider,
+        phonemeFindings: isAiAnalyzed ? phonemeFindings : comparisonPhonemeFindings,
+        observedError: observedError || comparisonObservedError,
+        pedagogicalNote,
         isTimeLimitReached,
         silabationDetected: reactionTimeMs > 4000 || responseTimeMs > 6000,
         pausesCount: reactionTimeMs > 2500 ? 1 : 0
@@ -459,6 +592,15 @@ export function useEvaluationEngine({
     evaluatedItemsRef.current.push(itemResult);
     setEvaluatedItems([...evaluatedItemsRef.current]);
 
+    if (itemResult.status === 'CORRETO' || itemResult.status === 'POSSIVELMENTE_CORRETO') {
+      setIsSuccessFeedback(true);
+    }
+
+    setIsAnalyzingAi(false);
+
+    // Retoma o cronômetro decorrido global descontando o tempo sem som (3s) e o tempo de IA
+    resumeGlobalTimer(silenceWaitMs);
+
     if (!settings.silentModeDuringSpeech && settings.soundEnabled) {
       audioService.playTransitionTick();
     }
@@ -467,7 +609,7 @@ export function useEvaluationEngine({
     currentIndexRef.current = nextIndex;
     setCurrentIndex(nextIndex);
 
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 450));
 
     if (nextIndex < stageItemsRef.current.length) {
       startItem(nextIndex, stageItemsRef.current);
@@ -694,7 +836,7 @@ export function useEvaluationEngine({
     );
 
     // Resumo Executivo para leitura rápida do Supervisor (Regra 20)
-    const executiveSummary = generateExecutiveSummary(
+    let executiveSummary = generateExecutiveSummary(
       pedagogicalDiagnosis,
       lettersReport,
       wordsReport,
@@ -703,7 +845,44 @@ export function useEvaluationEngine({
     );
 
     // Recomendações pedagógicas orientadas por dados (Regra 21)
-    const practiceRecommendations = generatePracticeRecommendations(allItems);
+    let practiceRecommendations = generatePracticeRecommendations(allItems);
+
+    let aiPedagogicalSynthesis: { executiveSummary: string; recommendations: string[]; strengths: string[] } | undefined = undefined;
+
+    // Síntese Pedagógica Estruturada com Google Gemini (gemini-3.8-flash)
+    try {
+      const itemsSummary = allItems
+        .map((it) => `- Alvo: "${it.targetText}", Leitura: "${it.transcript}", Status: ${it.status}${it.observedError ? ` (${it.observedError})` : ''}`)
+        .join('\n');
+
+      const geminiSynthesis = await api.generateSessionSynthesis({
+        childName: activeStudent?.name,
+        accuracyPercentage,
+        totalItems,
+        correctCount,
+        itemsSummary
+      });
+
+      if (geminiSynthesis?.executiveSummary) {
+        aiPedagogicalSynthesis = geminiSynthesis;
+        executiveSummary.readingQualitySummary = geminiSynthesis.executiveSummary;
+        if (geminiSynthesis.strengths && geminiSynthesis.strengths.length > 0) {
+          executiveSummary.whatChildCanDo = geminiSynthesis.strengths.join('. ');
+        }
+      }
+      if (Array.isArray(geminiSynthesis?.recommendations) && geminiSynthesis.recommendations.length > 0) {
+        practiceRecommendations = geminiSynthesis.recommendations.map((recText, idx) => ({
+          id: `rec_gemini_${idx + 1}`,
+          title: `Intervenção Pedagógica #${idx + 1}`,
+          category: 'Apropriação do Sistema de Escrita',
+          description: recText,
+          recommendedExamples: [],
+          priority: idx === 0 ? 'alta' : 'media'
+        }));
+      }
+    } catch (synthErr) {
+      console.warn('[Gemini] Síntese automatizada offline, mantendo síntese estruturada padrão:', synthErr);
+    }
 
     // Identificação escolar segura
     const studentAsStudent = activeStudent as Student | undefined;
@@ -720,7 +899,7 @@ export function useEvaluationEngine({
       criteriaVersion: settings.evaluationCriteriaVersion || '2026.2',
       timestamp: Date.now(),
       mode,
-      globalElapsedSeconds: globalElapsedSeconds || Math.round(totalTimeMs / 1000),
+      globalElapsedSeconds: Math.floor(Math.max(0, Date.now() - globalStartTimeRef.current) / 1000) || globalElapsedSeconds || Math.round(totalTimeMs / 1000),
       isGlobalTimeLimitReached: isTimeLimitExceeded || isGlobalTimeLimitReachedRef.current,
       totalItems,
       correctCount,
@@ -741,6 +920,7 @@ export function useEvaluationEngine({
       items: allItems,
       levelScores,
       practiceRecommendations,
+      aiPedagogicalSynthesis,
       syncStatus: 'pending'
     };
 
@@ -751,12 +931,15 @@ export function useEvaluationEngine({
       console.error('Falha ao salvar sessão via repositório:', err);
     }
 
+    pauseGlobalTimer();
     audioService.playCelebration();
+    audioService.releaseMic();
     setPhase('completed');
     onFinished(session);
   };
 
   const cancelEvaluation = () => {
+    pauseGlobalTimer();
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
@@ -769,12 +952,14 @@ export function useEvaluationEngine({
       clearTimeout(postSpeechTimeoutRef.current);
       postSpeechTimeoutRef.current = null;
     }
+    audioService.stopItemRecording().catch(() => {});
     speechService.stopSession();
+    audioService.releaseMic();
     setPhase('idle');
   };
 
   const markCurrentItemResult = async (status: 'CORRETO' | 'INCORRETO') => {
-    if (isTransitioningRef.current) return;
+    if (isTransitioningRef.current || isAnalyzingAi) return;
     isTransitioningRef.current = true;
 
     if (postSpeechTimeoutRef.current) {
@@ -785,6 +970,7 @@ export function useEvaluationEngine({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
+    audioService.stopMicMonitoring();
 
     const idx = currentIndexRef.current;
     const item = stageItemsRef.current[idx];
@@ -796,14 +982,22 @@ export function useEvaluationEngine({
       setIsSuccessFeedback(true);
       setLiveTranscript(item.text.toLowerCase());
       window.setTimeout(async () => {
-        await completeCurrentItem(idx, item, elapsed, item.text.toLowerCase(), 1.0, false);
+        await completeCurrentItem(idx, item, elapsed, item.text.toLowerCase(), 1.0, false, 0);
       }, 250);
     } else {
-      await completeCurrentItem(idx, item, elapsed, '(resposta incorreta)', 1.0, false);
+      await completeCurrentItem(idx, item, elapsed, '(resposta incorreta)', 1.0, false, 0);
     }
   };
 
   const skipCurrentItem = () => {
+    if (isTransitioningRef.current || isAnalyzingAi) return;
+
+    const elapsed = Date.now() - itemStartTimestampRef.current;
+    // Previne avanço acidental prematuro se nenhuma fala intencional foi detectada
+    if (elapsed < 600 && !intentionalSpeechDetectedRef.current) {
+      return;
+    }
+
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
@@ -812,18 +1006,22 @@ export function useEvaluationEngine({
       clearTimeout(postSpeechTimeoutRef.current);
       postSpeechTimeoutRef.current = null;
     }
+    audioService.stopMicMonitoring();
     const idx = currentIndexRef.current;
     const item = stageItemsRef.current[idx];
     if (item && !isTransitioningRef.current) {
       isTransitioningRef.current = true;
-      const elapsed = Date.now() - itemStartTimestampRef.current;
+      const silenceDuration = (intentionalSpeechDetectedRef.current && lastSpeechTimestampRef.current > 0)
+        ? Math.min(3000, Math.max(0, Date.now() - lastSpeechTimestampRef.current))
+        : 0;
       completeCurrentItem(
         idx,
         item,
         elapsed > 0 ? elapsed : totalItemDurationSec * 1000,
         undefined,
         undefined,
-        false
+        false,
+        silenceDuration
       );
     }
   };
@@ -839,7 +1037,9 @@ export function useEvaluationEngine({
       if (postSpeechTimeoutRef.current) {
         clearTimeout(postSpeechTimeoutRef.current);
       }
+      audioService.stopItemRecording().catch(() => {});
       speechService.stopSession();
+      audioService.releaseMic();
     };
   }, []);
 
@@ -857,6 +1057,7 @@ export function useEvaluationEngine({
     isMicListening,
     liveTranscript,
     isSuccessFeedback,
+    isAnalyzingAi,
     evaluatedItems,
     startEvaluation,
     cancelEvaluation,

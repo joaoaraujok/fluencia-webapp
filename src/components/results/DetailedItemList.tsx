@@ -148,7 +148,30 @@ export const DetailedItemList: React.FC<DetailedItemListProps> = ({ items }) => 
                           <span>{item.confidenceNote}</span>
                         </span>
                       )}
+
+                      {item.provider && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+                          {item.provider.includes('groq') ? 'Groq Whisper + Gemini' : item.provider}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Parecer Pedagógico Acolhedor da IA (Gemini) */}
+                    {item.pedagogicalNote && (
+                      <div className="text-xs text-indigo-900 bg-indigo-50/90 border border-indigo-200 px-3 py-1.5 rounded-xl mt-2 flex items-start gap-2">
+                        <span className="text-sm">💡</span>
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-indigo-950">
+                            <strong>Parecer da IA (Gemini):</strong> {item.pedagogicalNote}
+                          </p>
+                          {item.phonemeFindings && item.phonemeFindings.length > 0 && (
+                            <p className="text-[11px] text-indigo-700 font-medium">
+                              Evidências fonéticas: {item.phonemeFindings.join(' • ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

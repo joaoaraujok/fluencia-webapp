@@ -13,7 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { audioService } from '../../services/audioService';
-import { speechService } from '../../services/speechService';
+import { api } from '../../services/api';
 
 interface EnvironmentCheckScreenProps {
   onReadyToStart: () => void;
@@ -31,6 +31,7 @@ export const EnvironmentCheckScreen: React.FC<EnvironmentCheckScreenProps> = ({
   const [isTestingAudio, setIsTestingAudio] = useState<boolean>(false);
   const [noiseStatus, setNoiseStatus] = useState<'silence' | 'optimal' | 'noisy' | 'clipping'>('silence');
   const [testTranscript, setTestTranscript] = useState<string>('');
+  const [testPedagogicalNote, setTestPedagogicalNote] = useState<string>('');
   const [speechTested, setSpeechTested] = useState<boolean>(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState<boolean>(false);
 
@@ -61,34 +62,44 @@ export const EnvironmentCheckScreen: React.FC<EnvironmentCheckScreenProps> = ({
     return () => {
       active = false;
       audioService.stopMicMonitoring();
-      speechService.abort();
+      audioService.stopItemRecording().catch(() => {});
     };
   }, []);
 
-  const handleTestSpeech = () => {
+  const handleTestSpeech = async () => {
     setIsTestingAudio(true);
     setTestTranscript('');
+    setTestPedagogicalNote('');
 
-    speechService.startSession(
-      () => {},
-      (err) => console.warn('Erro teste:', err)
-    );
+    await audioService.ensureMicStream();
+    audioService.startItemRecording();
 
-    speechService.prepareNextItem({
-      expectedText: 'TESTE',
-      onTranscriptUpdate: (t) => {
-        setTestTranscript(t);
-        if (t.trim().length > 0) {
-          setSpeechTested(true);
+    setTimeout(async () => {
+      try {
+        const audioBlob = await audioService.stopItemRecording();
+        if (audioBlob && audioBlob.size > 100) {
+          const formData = new FormData();
+          const extension = audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+          formData.append('audioFile', audioBlob, `test_env_${Date.now()}.${extension}`);
+          formData.append('targetText', 'TESTE');
+          formData.append('itemType', 'word');
+
+          const aiRes = await api.analyzeAudioItem(formData);
+          if (aiRes) {
+            setTestTranscript(aiRes.transcript || '(Sem voz detectada)');
+            setTestPedagogicalNote(aiRes.pedagogicalNote || 'Áudio avaliado com sucesso.');
+            setSpeechTested(true);
+          }
+        } else {
+          setTestTranscript('(Nenhum som captado)');
         }
+      } catch (err) {
+        console.warn('Erro no teste de IA:', err);
+        setTestTranscript('Erro de conexão com o servidor de IA');
+      } finally {
+        setIsTestingAudio(false);
       }
-    });
-
-    setTimeout(() => {
-      speechService.stopSession();
-      setIsTestingAudio(false);
-      setSpeechTested(true);
-    }, 4000);
+    }, 2800);
   };
 
   const isEnvironmentReady = micGranted && instructionsAccepted;
@@ -241,17 +252,24 @@ export const EnvironmentCheckScreen: React.FC<EnvironmentCheckScreenProps> = ({
             </div>
 
             {testTranscript ? (
-              <div className="p-2.5 rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center justify-between">
-                <span>Captado: "{testTranscript}"</span>
-                {speechTested && (
-                  <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-700/50">
-                    Voz OK
-                  </span>
+              <div className="p-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 text-xs space-y-1.5 font-mono">
+                <div className="flex items-center justify-between">
+                  <span>Groq Whisper: "{testTranscript}"</span>
+                  {speechTested && (
+                    <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-700/50">
+                      IA Pronta
+                    </span>
+                  )}
+                </div>
+                {testPedagogicalNote && (
+                  <p className="text-[11px] text-purple-300 font-sans italic">
+                    Gemini: {testPedagogicalNote}
+                  </p>
                 )}
               </div>
             ) : (
               <p className="text-[11px] text-slate-400 italic">
-                {isTestingAudio ? 'Fale algo em direção ao microfone...' : 'Clique em "Falar Palavra Teste" para testar o reconhecimento.'}
+                {isTestingAudio ? 'Ouvindo áudio para Groq Whisper & Gemini...' : 'Clique em "Falar Palavra Teste" para validar o pipeline de IA.'}
               </p>
             )}
           </div>

@@ -29,10 +29,10 @@ describe('Serviço de Reconhecimento de Fala (SpeechRecognitionProvider)', () =>
       speechService.stopSession();
     });
 
-    it('deve instanciar a classe com id oficial browser-web-speech', () => {
-      expect(speechService.id).toBe('browser-web-speech');
+    it('deve instanciar a classe com id oficial groq-whisper-gemini', () => {
+      expect(speechService.id).toBe('groq-whisper-gemini');
       const customProvider = new BrowserWebSpeechProvider();
-      expect(customProvider.id).toBe('browser-web-speech');
+      expect(customProvider.id).toBe('groq-whisper-gemini');
     });
 
     it('deve expor métodos de sessão contínua sem quebrar em ambientes de teste', () => {
@@ -50,7 +50,7 @@ describe('Serviço de Reconhecimento de Fala (SpeechRecognitionProvider)', () =>
         transcript: '',
         confidence: 1.0,
         availableTimeMs: 10000,
-        provider: 'browser-web-speech',
+        provider: 'groq-whisper-gemini',
         numberOfAttempts: expect.any(Number),
         responseTimeMs: expect.any(Number)
       });

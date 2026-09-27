@@ -38,6 +38,7 @@ export interface EvaluationItemResult {
   provider?: string;
   phonemeFindings?: string[];
   observedError?: string;      // Categoria do erro (troca_fonema, omissao, acrescimo, etc)
+  pedagogicalNote?: string;    // Nota pedagógica acolhedora da IA (Whisper + Gemini)
   isSelfCorrection?: boolean;  // Se houve autocorreção
   silabationDetected?: boolean;// Se houve silabação evidente
   isTimeLimitReached?: boolean;// Se atingiu o tempo máximo de 10s ou 15s
@@ -181,6 +182,11 @@ export interface EvaluationSession {
   items: EvaluationItemResult[];
   levelScores: Record<DifficultyLevel, LevelScore>;
   practiceRecommendations: PracticeRecommendation[];
+  aiPedagogicalSynthesis?: {
+    executiveSummary: string;
+    recommendations: string[];
+    strengths: string[];
+  };
   notes?: string;
   syncStatus?: 'synced' | 'pending' | 'syncing' | 'error';
 }

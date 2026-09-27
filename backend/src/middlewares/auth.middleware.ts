@@ -27,19 +27,19 @@ interface JwtPayload {
 }
 
 export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    throw new AppError('Token de autenticação não fornecido.', 401);
-  }
-
-  const [scheme, token] = authHeader.split(' ');
-
-  if (!token || scheme !== 'Bearer') {
-    throw new AppError('Formato de token inválido. Esperado Bearer <token>.', 401);
-  }
-
   try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      throw new AppError('Token de autenticação não fornecido.', 401);
+    }
+
+    const [scheme, token] = authHeader.split(' ');
+
+    if (!token || scheme !== 'Bearer') {
+      throw new AppError('Formato de token inválido. Esperado Bearer <token>.', 401);
+    }
+
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
 
     const user = await prisma.user.findUnique({
@@ -61,11 +61,13 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     next();
   } catch (err: any) {
     if (err instanceof AppError) {
-      throw err;
+      next(err);
+      return;
     }
     if (err.name === 'TokenExpiredError') {
-      throw new AppError('Sessão expirada. Faça login novamente.', 401);
+      next(new AppError('Sessão expirada. Faça login novamente.', 401));
+      return;
     }
-    throw new AppError('Token inválido ou adulterado.', 401);
+    next(new AppError('Token inválido ou adulterado.', 401));
   }
 }
