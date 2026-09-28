@@ -8,12 +8,13 @@ const controller = new StudentsController();
 
 router.use(authMiddleware);
 
-// Todos os usuários autenticados (SUPERADMIN, ADMIN, SUPERVISOR) podem listar e consultar alunos
+// Todos os usuários autenticados podem consultar alunos (Supervisor vê apenas da sua escola)
 router.get('/', controller.list.bind(controller));
 router.get('/:id', controller.getById.bind(controller));
 
-// SUPERADMIN, ADMIN e SUPERVISOR podem criar e atualizar alunos de suas turmas
-router.post('/', requireRole('SUPERADMIN', 'ADMIN', 'SUPERVISOR'), controller.create.bind(controller));
-router.patch('/:id', requireRole('SUPERADMIN', 'ADMIN', 'SUPERVISOR'), controller.update.bind(controller));
+// Apenas SUPERADMIN pode criar, editar e excluir alunos
+router.post('/', requireRole('SUPERADMIN'), controller.create.bind(controller));
+router.patch('/:id', requireRole('SUPERADMIN'), controller.update.bind(controller));
+router.delete('/:id', requireRole('SUPERADMIN'), controller.delete.bind(controller));
 
 export const studentsRoutes = router;

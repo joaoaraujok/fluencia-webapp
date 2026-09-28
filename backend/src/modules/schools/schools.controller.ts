@@ -21,9 +21,9 @@ const updateSchoolSchema = z.object({
 });
 
 export class SchoolsController {
-  public async list(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const schools = await schoolsService.listSchools();
+      const schools = await schoolsService.listSchools(req.user);
       res.status(200).json({ status: 'success', data: { schools } });
     } catch (err) {
       next(err);
@@ -62,6 +62,16 @@ export class SchoolsController {
       });
 
       res.status(200).json({ status: 'success', data: { school } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const actorUserId = req.user!.id;
+      const result = await schoolsService.deleteSchool(getParam(req.params.id), actorUserId);
+      res.status(200).json({ status: 'success', message: result.message });
     } catch (err) {
       next(err);
     }

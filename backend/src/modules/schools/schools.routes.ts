@@ -8,12 +8,14 @@ const controller = new SchoolsController();
 
 router.use(authMiddleware);
 
-// Todos os usuários autenticados (SUPERADMIN, ADMIN, SUPERVISOR) podem listar/consultar escolas
+// Todos os usuários autenticados podem consultar escolas (Supervisor vê apenas a sua)
 router.get('/', controller.list.bind(controller));
 router.get('/:id', controller.getById.bind(controller));
 
-// SUPERADMIN e ADMIN podem criar e atualizar escolas
-router.post('/', requireRole('SUPERADMIN', 'ADMIN'), controller.create.bind(controller));
-router.patch('/:id', requireRole('SUPERADMIN', 'ADMIN'), controller.update.bind(controller));
+// Apenas SUPERADMIN pode criar, editar e excluir escolas
+router.post('/', requireRole('SUPERADMIN'), controller.create.bind(controller));
+router.patch('/:id', requireRole('SUPERADMIN'), controller.update.bind(controller));
+router.delete('/:id', requireRole('SUPERADMIN'), controller.delete.bind(controller));
 
 export const schoolsRoutes = router;
+

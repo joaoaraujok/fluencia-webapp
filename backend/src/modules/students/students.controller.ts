@@ -30,7 +30,7 @@ export class StudentsController {
       const schoolId = req.query.schoolId as string | undefined;
       const search = req.query.search as string | undefined;
 
-      const students = await studentsService.listStudents(classId, schoolId, search);
+      const students = await studentsService.listStudents(classId, schoolId, search, req.user);
       res.status(200).json({ status: 'success', data: { students } });
     } catch (err) {
       next(err);
@@ -75,6 +75,16 @@ export class StudentsController {
       });
 
       res.status(200).json({ status: 'success', data: { student } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const actorUserId = req.user!.id;
+      const result = await studentsService.deleteStudent(getParam(req.params.id), actorUserId);
+      res.status(200).json({ status: 'success', message: result.message });
     } catch (err) {
       next(err);
     }

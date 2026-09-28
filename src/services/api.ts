@@ -116,6 +116,19 @@ class ApiService {
     });
   }
 
+  public async updateSchool(id: string, data: Partial<School>): Promise<{ school: School }> {
+    return this.request<{ school: School }>(`/schools/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public async deleteSchool(id: string): Promise<void> {
+    return this.request<void>(`/schools/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // --- Classes ---
   public async getClasses(schoolId?: string): Promise<{ classes: SchoolClass[] }> {
     const query = schoolId ? `?schoolId=${schoolId}` : '';
@@ -126,6 +139,19 @@ class ApiService {
     return this.request<{ class: SchoolClass }>('/classes', {
       method: 'POST',
       body: JSON.stringify(data)
+    });
+  }
+
+  public async updateClass(id: string, data: Partial<SchoolClass>): Promise<{ class: SchoolClass }> {
+    return this.request<{ class: SchoolClass }>(`/classes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public async deleteClass(id: string): Promise<void> {
+    return this.request<void>(`/classes/${id}`, {
+      method: 'DELETE'
     });
   }
 
@@ -149,6 +175,12 @@ class ApiService {
     return this.request<{ student: Student }>(`/students/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
+    });
+  }
+
+  public async deleteStudent(id: string): Promise<void> {
+    return this.request<void>(`/students/${id}`, {
+      method: 'DELETE'
     });
   }
 
@@ -195,6 +227,7 @@ class ApiService {
     email: string;
     password?: string;
     role?: UserRole;
+    schoolId?: string | null;
   }): Promise<{ user: UserProfile }> {
     return this.request<{ user: UserProfile }>('/users', {
       method: 'POST',
@@ -204,7 +237,7 @@ class ApiService {
 
   public async updateUser(
     id: string,
-    data: Partial<{ name: string; email: string; role: UserRole; active: boolean; password?: string }>
+    data: Partial<{ name: string; email: string; role: UserRole; schoolId?: string | null; active: boolean; password?: string }>
   ): Promise<{ user: UserProfile }> {
     return this.request<{ user: UserProfile }>(`/users/${id}`, {
       method: 'PATCH',
@@ -226,16 +259,24 @@ class ApiService {
     });
   }
 
-  public async getEvaluations(studentId?: string, classId?: string): Promise<{ evaluations: EvaluationSession[] }> {
+  public async getEvaluations(studentId?: string, classId?: string, schoolId?: string): Promise<{ evaluations: any[] }> {
     const params = new URLSearchParams();
     if (studentId) params.append('studentId', studentId);
     if (classId) params.append('classId', classId);
+    if (schoolId) params.append('schoolId', schoolId);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<{ evaluations: EvaluationSession[] }>(`/evaluations${query}`);
+    return this.request<{ evaluations: any[] }>(`/evaluations${query}`);
   }
 
-  public async getEvaluationById(id: string): Promise<{ session: EvaluationSession }> {
-    return this.request<{ session: EvaluationSession }>(`/evaluations/${id}`);
+  public async getEvaluationById(id: string): Promise<{ session: any }> {
+    return this.request<{ session: any }>(`/evaluations/${id}`);
+  }
+
+  public async reviewEvaluation(id: string, data: { adminFeedback: string; adminReviewStatus: string }): Promise<{ session: any }> {
+    return this.request<{ session: any }>(`/evaluations/${id}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
   }
 
   public async analyzeAudioItem(formData: FormData): Promise<AudioAnalysisResponse> {

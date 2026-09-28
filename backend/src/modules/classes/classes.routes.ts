@@ -8,12 +8,13 @@ const controller = new ClassesController();
 
 router.use(authMiddleware);
 
-// Todos os usuários autenticados podem listar turmas e obter detalhes
+// Todos os usuários autenticados podem consultar turmas (Supervisor vê apenas da sua escola)
 router.get('/', controller.list.bind(controller));
 router.get('/:id', controller.getById.bind(controller));
 
-// SUPERADMIN e ADMIN podem criar e atualizar turmas
-router.post('/', requireRole('SUPERADMIN', 'ADMIN'), controller.create.bind(controller));
-router.patch('/:id', requireRole('SUPERADMIN', 'ADMIN'), controller.update.bind(controller));
+// Apenas SUPERADMIN pode criar, editar e excluir turmas
+router.post('/', requireRole('SUPERADMIN'), controller.create.bind(controller));
+router.patch('/:id', requireRole('SUPERADMIN'), controller.update.bind(controller));
+router.delete('/:id', requireRole('SUPERADMIN'), controller.delete.bind(controller));
 
 export const classesRoutes = router;

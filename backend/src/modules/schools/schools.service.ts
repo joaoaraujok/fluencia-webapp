@@ -21,8 +21,14 @@ interface UpdateSchoolInput {
 }
 
 export class SchoolsService {
-  public async listSchools() {
+  public async listSchools(user?: { role: string; schoolId?: string | null }) {
+    const where: any = {};
+    if (user?.role === 'SUPERVISOR' && user?.schoolId) {
+      where.id = user.schoolId;
+    }
+
     return prisma.school.findMany({
+      where,
       include: {
         _count: {
           select: {
@@ -121,5 +127,26 @@ export class SchoolsService {
     });
 
     return updated;
+  }
+
+  public async deleteSchool(id: string, actorUserId: string) {
+    const existing = await prisma.school.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Escola não encontrada.', 404);
+    }
+
+    await prisma.school.delete({
+      where: { id }
+    });
+
+    await recordAuditLog({
+      userId: actorUserId,
+      action: 'DELETE',
+      entity: 'School',
+      entityId: id,
+      oldValue: { name: existing.name, code: existing.code }
+    });
+
+    return { message: 'Escola removida com sucesso.' };
   }
 }

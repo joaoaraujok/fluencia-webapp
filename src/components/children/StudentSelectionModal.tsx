@@ -3,6 +3,7 @@ import { X, UserPlus, Check, User, Users } from 'lucide-react';
 import { Student, SchoolClass } from '../../types/school';
 import { repository } from '../../services/repository';
 import { api } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface StudentSelectionModalProps {
   isOpen: boolean;
@@ -17,6 +18,9 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
   onClose,
   onSelectStudent
 }) => {
+  const { hasRole, isAuthenticated } = useAuth();
+  const canCreateStudent = !isAuthenticated || hasRole('SUPERADMIN');
+
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
@@ -145,13 +149,15 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Estudantes da Turma ({students.length})
               </span>
-              <button
-                onClick={() => setIsAdding(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Novo Estudante</span>
-              </button>
+              {canCreateStudent && (
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Novo Estudante</span>
+                </button>
+              )}
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-2 pr-1">

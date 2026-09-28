@@ -42,4 +42,7 @@ router.get('/:id', controller.getById.bind(controller));
 // Aplicar/salvar avaliação persistente (SUPERVISOR e SUPERADMIN)
 router.post('/', requireRole('SUPERVISOR', 'SUPERADMIN'), controller.create.bind(controller));
 
+// Avaliar/revisar relatório de supervisores (ADMIN e SUPERADMIN)
+router.patch('/:id/review', requireRole('ADMIN', 'SUPERADMIN'), controller.review.bind(controller));
+
 export const evaluationsRoutes = router;

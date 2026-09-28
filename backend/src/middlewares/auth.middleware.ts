@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   name: string;
   email: string;
   role: Role;
+  schoolId?: string | null;
 }
 
 declare global {
@@ -24,6 +25,7 @@ interface JwtPayload {
   sub: string;
   role: Role;
   email: string;
+  schoolId?: string | null;
 }
 
 export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
@@ -44,7 +46,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.sub },
-      select: { id: true, name: true, email: true, role: true, active: true }
+      select: { id: true, name: true, email: true, role: true, schoolId: true, active: true }
     });
 
     if (!user || !user.active) {
@@ -55,7 +57,8 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      schoolId: user.schoolId
     };
 
     next();

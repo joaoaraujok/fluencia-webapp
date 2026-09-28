@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../shared/errors/AppError.js';
 import { env } from '../config/env.js';
 
@@ -36,6 +37,18 @@ export function errorHandler(
     return;
   }
 
+  // Falha de conexão ou inicialização com o banco de dados (Prisma)
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    console.error('🔌 Falha de conexão com o banco de dados (PrismaClientInitializationError):', err.message);
+    res.status(503).json({
+      status: 'error',
+      statusCode: 503,
+      message: 'Serviço de banco de dados indisponível. Verifique se o PostgreSQL está em execução.',
+      ...(env.NODE_ENV === 'development' ? { rawError: err.message } : {})
+    });
+    return;
+  }
+
   // Log de erros não esperados
   console.error('💥 Erro interno não tratado:', err);
 
@@ -46,3 +59,4 @@ export function errorHandler(
     ...(env.NODE_ENV === 'development' ? { stack: err.stack, rawError: err.message } : {})
   });
 }
+

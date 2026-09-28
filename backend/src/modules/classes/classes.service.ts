@@ -23,9 +23,12 @@ interface UpdateClassInput {
 }
 
 export class ClassesService {
-  public async listClasses(schoolId?: string) {
+  public async listClasses(schoolId?: string, user?: { role: string; schoolId?: string | null }) {
     const where: Prisma.SchoolClassWhereInput = {};
-    if (schoolId) {
+
+    if (user?.role === 'SUPERVISOR' && user?.schoolId) {
+      where.schoolId = user.schoolId;
+    } else if (schoolId) {
       where.schoolId = schoolId;
     }
 
@@ -144,5 +147,26 @@ export class ClassesService {
     });
 
     return updated;
+  }
+
+  public async deleteClass(id: string, actorUserId: string) {
+    const existing = await prisma.schoolClass.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Turma não encontrada.', 404);
+    }
+
+    await prisma.schoolClass.delete({
+      where: { id }
+    });
+
+    await recordAuditLog({
+      userId: actorUserId,
+      action: 'DELETE',
+      entity: 'SchoolClass',
+      entityId: id,
+      oldValue: { name: existing.name, schoolId: existing.schoolId }
+    });
+
+    return { message: 'Turma removida com sucesso.' };
   }
 }

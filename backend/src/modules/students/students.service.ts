@@ -26,10 +26,21 @@ interface UpdateStudentInput {
 }
 
 export class StudentsService {
-  public async listStudents(classId?: string, schoolId?: string, search?: string) {
+  public async listStudents(
+    classId?: string,
+    schoolId?: string,
+    search?: string,
+    user?: { role: string; schoolId?: string | null }
+  ) {
     const where: Prisma.StudentWhereInput = {};
+
+    if (user?.role === 'SUPERVISOR' && user?.schoolId) {
+      where.schoolId = user.schoolId;
+    } else if (schoolId) {
+      where.schoolId = schoolId;
+    }
+
     if (classId) where.classId = classId;
-    if (schoolId) where.schoolId = schoolId;
     if (search && search.trim().length > 0) {
       where.name = { contains: search.trim(), mode: 'insensitive' };
     }
@@ -174,5 +185,26 @@ export class StudentsService {
     });
 
     return updated;
+  }
+
+  public async deleteStudent(id: string, actorUserId: string) {
+    const existing = await prisma.student.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Aluno não encontrado.', 404);
+    }
+
+    await prisma.student.delete({
+      where: { id }
+    });
+
+    await recordAuditLog({
+      userId: actorUserId,
+      action: 'DELETE',
+      entity: 'Student',
+      entityId: id,
+      oldValue: { name: existing.name, registrationNumber: existing.registrationNumber }
+    });
+
+    return { message: 'Aluno removido com sucesso.' };
   }
 }

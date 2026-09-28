@@ -49,6 +49,7 @@ enum EvaluationStatus {
 
 model User {
   id           String      @id @default(uuid())
+  schoolId     String?     @map("school_id")
   name         String
   email        String      @unique
   passwordHash String      @map("password_hash")
@@ -58,6 +59,7 @@ model User {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
+  school       School?     @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   evaluations  EvaluationSession[]
   auditLogs    AuditLog[]
   settingsUpdated PedagogicalSetting[]
@@ -78,6 +80,7 @@ model School {
   classes     SchoolClass[]
   students    Student[]
   evaluations EvaluationSession[]
+  users       User[]
 
   @@map("schools")
 }
@@ -177,6 +180,10 @@ model EvaluationSession {
   averageResponseTimeMs Int              @map("average_response_time_ms")
   summaryJson           Json?            @map("summary_json")
   notes                 String?          @db.Text
+  adminFeedback         String?          @db.Text @map("admin_feedback")
+  adminReviewedAt       DateTime?        @map("admin_reviewed_at")
+  adminReviewedById     String?          @map("admin_reviewed_by_id")
+  adminReviewStatus     String?          @default("PENDENTE") @map("admin_review_status")
   syncStatus            String           @default("synced") @map("sync_status") // "synced", "pending"
   clientTimestamp       DateTime?        @map("client_timestamp")
   createdAt             DateTime         @default(now()) @map("created_at")

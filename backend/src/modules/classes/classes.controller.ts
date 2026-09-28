@@ -26,7 +26,7 @@ export class ClassesController {
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const schoolId = req.query.schoolId as string | undefined;
-      const classes = await classesService.listClasses(schoolId);
+      const classes = await classesService.listClasses(schoolId, req.user);
       res.status(200).json({ status: 'success', data: { classes } });
     } catch (err) {
       next(err);
@@ -65,6 +65,16 @@ export class ClassesController {
       });
 
       res.status(200).json({ status: 'success', data: { class: schoolClass } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const actorUserId = req.user!.id;
+      const result = await classesService.deleteClass(getParam(req.params.id), actorUserId);
+      res.status(200).json({ status: 'success', message: result.message });
     } catch (err) {
       next(err);
     }

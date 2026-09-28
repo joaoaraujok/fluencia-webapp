@@ -6,6 +6,8 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   active: boolean;
+  schoolId?: string | null;
+  school?: { id: string; name: string; city?: string; state?: string } | null;
   lastLoginAt?: string | null;
 }
 

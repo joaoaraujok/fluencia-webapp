@@ -3,7 +3,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { RecognitionStatus, QuestionLevel } from '@prisma/client';
 
 export class ReportsService {
-  public async getStudentReport(studentId: string) {
+  public async getStudentReport(studentId: string, user?: { role: string; schoolId?: string | null }) {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
@@ -14,6 +14,10 @@ export class ReportsService {
 
     if (!student) {
       throw new AppError('Aluno não encontrado.', 404);
+    }
+
+    if (user?.role === 'SUPERVISOR' && user?.schoolId && student.schoolId !== user.schoolId) {
+      throw new AppError('Acesso restrito: você só tem permissão para visualizar dados da sua escola vinculada.', 403);
     }
 
     const sessions = await prisma.evaluationSession.findMany({
@@ -79,7 +83,7 @@ export class ReportsService {
     };
   }
 
-  public async getClassReport(classId: string) {
+  public async getClassReport(classId: string, user?: { role: string; schoolId?: string | null }) {
     const schoolClass = await prisma.schoolClass.findUnique({
       where: { id: classId },
       include: {
@@ -99,6 +103,10 @@ export class ReportsService {
 
     if (!schoolClass) {
       throw new AppError('Turma não encontrada.', 404);
+    }
+
+    if (user?.role === 'SUPERVISOR' && user?.schoolId && schoolClass.schoolId !== user.schoolId) {
+      throw new AppError('Acesso restrito: você só tem permissão para visualizar dados da sua escola vinculada.', 403);
     }
 
     const totalStudents = schoolClass.students.length;

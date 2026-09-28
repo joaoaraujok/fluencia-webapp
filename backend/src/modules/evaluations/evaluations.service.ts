@@ -41,11 +41,20 @@ interface CreateEvaluationSessionInput {
 }
 
 export class EvaluationsService {
-  public async listEvaluations(studentId?: string, classId?: string, schoolId?: string) {
+  public async listEvaluations(
+    studentId?: string,
+    classId?: string,
+    schoolId?: string,
+    user?: { role: string; schoolId?: string | null }
+  ) {
     const where: Prisma.EvaluationSessionWhereInput = {};
+    if (user?.role === 'SUPERVISOR' && user?.schoolId) {
+      where.schoolId = user.schoolId;
+    } else if (schoolId) {
+      where.schoolId = schoolId;
+    }
     if (studentId) where.studentId = studentId;
     if (classId) where.classId = classId;
-    if (schoolId) where.schoolId = schoolId;
 
     return prisma.evaluationSession.findMany({
       where,
@@ -53,11 +62,55 @@ export class EvaluationsService {
         student: { select: { id: true, name: true, registrationNumber: true } },
         class: { select: { id: true, name: true, gradeYear: true } },
         school: { select: { id: true, name: true } },
-        evaluator: { select: { id: true, name: true, email: true } },
+        evaluator: { select: { id: true, name: true, email: true, role: true } },
         _count: { select: { items: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
+  }
+
+  public async reviewEvaluationSession({
+    id,
+    adminFeedback,
+    adminReviewStatus,
+    actorUserId
+  }: {
+    id: string;
+    adminFeedback: string;
+    adminReviewStatus: string;
+    actorUserId: string;
+  }) {
+    const session = await prisma.evaluationSession.findUnique({ where: { id } });
+    if (!session) {
+      throw new AppError('Avaliação não encontrada.', 404);
+    }
+
+    const updated = await prisma.evaluationSession.update({
+      where: { id },
+      data: {
+        adminFeedback: adminFeedback.trim(),
+        adminReviewStatus,
+        adminReviewedAt: new Date(),
+        adminReviewedById: actorUserId
+      },
+      include: {
+        student: true,
+        class: true,
+        school: true,
+        evaluator: { select: { id: true, name: true, email: true, role: true } }
+      }
+    });
+
+    await recordAuditLog({
+      userId: actorUserId,
+      action: 'UPDATE',
+      entity: 'EvaluationSession',
+      entityId: id,
+      oldValue: { adminReviewStatus: session.adminReviewStatus },
+      newValue: { adminReviewStatus, adminFeedback }
+    });
+
+    return updated;
   }
 
   public async getEvaluationById(id: string) {

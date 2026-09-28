@@ -188,5 +188,9 @@ export interface EvaluationSession {
     strengths: string[];
   };
   notes?: string;
+  adminFeedback?: string;
+  adminReviewedAt?: string;
+  adminReviewedById?: string;
+  adminReviewStatus?: 'PENDENTE' | 'APROVADO' | 'REQUER_ATENCAO' | 'EM_OBSERVACAO';
   syncStatus?: 'synced' | 'pending' | 'syncing' | 'error';
 }

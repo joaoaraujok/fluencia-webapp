@@ -9,6 +9,7 @@ import { EnvironmentCheckScreen } from './components/evaluation/EnvironmentCheck
 import { StudentSelectionModal } from './components/children/StudentSelectionModal';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useEvaluationEngine } from './hooks/useEvaluationEngine';
+import { Lock } from 'lucide-react';
 import { Student } from './types/school';
 import { ChildProfile } from './types/child';
 import { DifficultyLevel, QuestionItem } from './types/question';
@@ -44,7 +45,7 @@ const UserManualModal = React.lazy(() =>
 type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
 
 const MainApp: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [view, setView] = useState<ViewMode>('home');
   const [activeStudent, setActiveStudent] = useState<Student | ChildProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -240,7 +241,39 @@ const MainApp: React.FC = () => {
           )}
 
           {view === 'admin' && (
-            <AdminDashboard onBack={() => setView('home')} />
+            isAuthenticated ? (
+              <AdminDashboard
+                onBack={() => setView('home')}
+                onSelectStudentForTest={(student) => {
+                  setActiveStudent(student);
+                  prepareEvaluationFlow('complete');
+                }}
+              />
+            ) : (
+              <div className="card p-8 max-w-md mx-auto text-center space-y-4 my-12 bg-white border-slate-200 animate-fadeIn">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto border border-indigo-100">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <h3 className="font-display font-bold text-xl text-slate-900">Acesso Restrito</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  O painel de gestão é exclusivo para profissionais cadastrados (SuperAdmin, Admin e Supervisor). Sem login institucional, você pode apenas realizar avaliações e testes diagnósticos.
+                </p>
+                <div className="flex gap-2 justify-center pt-2">
+                  <button
+                    onClick={() => setView('home')}
+                    className="btn-secondary text-xs px-4 py-2 cursor-pointer"
+                  >
+                    Voltar ao Início
+                  </button>
+                  <button
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="btn-primary text-xs px-4 py-2 cursor-pointer"
+                  >
+                    Entrar com Conta
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </React.Suspense>
       </main>

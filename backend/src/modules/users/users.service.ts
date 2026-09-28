@@ -9,6 +9,7 @@ interface CreateUserInput {
   email: string;
   password: string;
   role: Role;
+  schoolId?: string | null;
   actorUserId: string;
 }
 
@@ -18,6 +19,7 @@ interface UpdateUserInput {
   email?: string;
   password?: string;
   role?: Role;
+  schoolId?: string | null;
   active?: boolean;
   actorUserId: string;
 }
@@ -30,6 +32,8 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        schoolId: true,
+        school: { select: { id: true, name: true } },
         active: true,
         lastLoginAt: true,
         createdAt: true,
@@ -47,6 +51,8 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        schoolId: true,
+        school: { select: { id: true, name: true } },
         active: true,
         lastLoginAt: true,
         createdAt: true,
@@ -61,7 +67,7 @@ export class UsersService {
     return user;
   }
 
-  public async createUser({ name, email, password, role, actorUserId }: CreateUserInput) {
+  public async createUser({ name, email, password, role, schoolId, actorUserId }: CreateUserInput) {
     const normalizedEmail = email.trim().toLowerCase();
 
     const existing = await prisma.user.findUnique({
@@ -76,6 +82,13 @@ export class UsersService {
       throw new AppError('A senha deve ter ao menos 8 caracteres.', 400);
     }
 
+    if (schoolId) {
+      const school = await prisma.school.findUnique({ where: { id: schoolId } });
+      if (!school) {
+        throw new AppError('Escola vinculada informada não existe.', 404);
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
@@ -84,6 +97,7 @@ export class UsersService {
         email: normalizedEmail,
         passwordHash,
         role,
+        schoolId: schoolId || null,
         active: true
       },
       select: {
@@ -91,6 +105,8 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        schoolId: true,
+        school: { select: { id: true, name: true } },
         active: true,
         createdAt: true
       }
@@ -101,13 +117,13 @@ export class UsersService {
       action: 'CREATE',
       entity: 'User',
       entityId: user.id,
-      newValue: { name: user.name, email: user.email, role: user.role }
+      newValue: { name: user.name, email: user.email, role: user.role, schoolId }
     });
 
     return user;
   }
 
-  public async updateUser({ id, name, email, password, role, active, actorUserId }: UpdateUserInput) {
+  public async updateUser({ id, name, email, password, role, schoolId, active, actorUserId }: UpdateUserInput) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError('Usuário não encontrado.', 404);
@@ -144,6 +160,18 @@ export class UsersService {
     if (role !== undefined) dataToUpdate.role = role;
     if (active !== undefined) dataToUpdate.active = active;
 
+    if (schoolId !== undefined) {
+      if (schoolId) {
+        const school = await prisma.school.findUnique({ where: { id: schoolId } });
+        if (!school) {
+          throw new AppError('Escola vinculada informada não existe.', 404);
+        }
+        dataToUpdate.school = { connect: { id: schoolId } };
+      } else {
+        dataToUpdate.school = { disconnect: true };
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: dataToUpdate,
@@ -152,6 +180,8 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        schoolId: true,
+        school: { select: { id: true, name: true } },
         active: true,
         updatedAt: true
       }
@@ -184,22 +214,35 @@ export class UsersService {
       }
     }
 
-    // Desativação lógica recomendada para preservar integridade de auditoria e avaliações históricas
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { active: false },
-      select: { id: true, active: true }
-    });
+    try {
+      await prisma.user.delete({ where: { id } });
+      await recordAuditLog({
+        userId: actorUserId,
+        action: 'DELETE',
+        entity: 'User',
+        entityId: id,
+        oldValue: { name: existing.name, email: existing.email, role: existing.role },
+        newValue: { action: 'hard_delete' }
+      });
+      return { message: 'Usuário excluído com sucesso.' };
+    } catch {
+      const updated = await prisma.user.update({
+        where: { id },
+        data: { active: false },
+        select: { id: true, active: true }
+      });
 
-    await recordAuditLog({
-      userId: actorUserId,
-      action: 'DELETE',
-      entity: 'User',
-      entityId: id,
-      oldValue: { active: existing.active },
-      newValue: { active: false, action: 'soft_delete' }
-    });
+      await recordAuditLog({
+        userId: actorUserId,
+        action: 'DELETE',
+        entity: 'User',
+        entityId: id,
+        oldValue: { active: existing.active },
+        newValue: { active: false, action: 'soft_delete' }
+      });
 
-    return { message: 'Usuário desativado com sucesso.', user: updated };
+      return { message: 'Usuário desativado com sucesso.', user: updated };
+    }
   }
 }
+

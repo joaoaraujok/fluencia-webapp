@@ -10,7 +10,8 @@ const createUserSchema = z.object({
   name: z.string().min(2, 'Nome deve ter ao menos 2 caracteres'),
   email: z.string().email('E-mail em formato inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
-  role: z.nativeEnum(Role, { errorMap: () => ({ message: 'Perfil (role) inválido' }) })
+  role: z.nativeEnum(Role, { errorMap: () => ({ message: 'Perfil (role) inválido' }) }),
+  schoolId: z.string().uuid().optional().nullable()
 });
 
 const updateUserSchema = z.object({
@@ -18,6 +19,7 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
   role: z.nativeEnum(Role).optional(),
+  schoolId: z.string().uuid().optional().nullable(),
   active: z.boolean().optional()
 });
 

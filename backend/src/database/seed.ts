@@ -132,6 +132,14 @@ async function seed() {
     console.log(`✅ Escola criada: ${school.name}`);
   }
 
+  if (demoSupervisor && !demoSupervisor.schoolId) {
+    await prisma.user.update({
+      where: { id: demoSupervisor.id },
+      data: { schoolId: school.id }
+    });
+    console.log(`✅ SUPERVISOR vinculado à escola: ${school.name}`);
+  }
+
   let schoolClass = await prisma.schoolClass.findFirst({
     where: { schoolId: school.id, name: '1º Ano A - Alfabetização' }
   });

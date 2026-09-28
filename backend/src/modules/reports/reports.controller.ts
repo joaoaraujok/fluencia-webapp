@@ -8,7 +8,7 @@ export class ReportsController {
   public async getStudentReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const studentId = getParam(req.params.studentId);
-      const report = await reportsService.getStudentReport(studentId);
+      const report = await reportsService.getStudentReport(studentId, req.user);
       res.status(200).json({ status: 'success', data: report });
     } catch (err) {
       next(err);
@@ -18,7 +18,7 @@ export class ReportsController {
   public async getClassReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const classId = getParam(req.params.classId);
-      const report = await reportsService.getClassReport(classId);
+      const report = await reportsService.getClassReport(classId, req.user);
       res.status(200).json({ status: 'success', data: report });
     } catch (err) {
       next(err);

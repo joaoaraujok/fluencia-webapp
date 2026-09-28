@@ -42,6 +42,11 @@ const createEvaluationSessionSchema = z.object({
   items: z.array(evaluationItemSchema).min(1, 'A avaliação deve conter ao menos 1 item respondido')
 });
 
+const reviewEvaluationSchema = z.object({
+  adminFeedback: z.string().min(1, 'Parecer avaliativo é obrigatório'),
+  adminReviewStatus: z.enum(['APROVADO', 'REQUER_ATENCAO', 'EM_OBSERVACAO', 'PENDENTE']).default('APROVADO')
+});
+
 export class EvaluationsController {
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -49,8 +54,26 @@ export class EvaluationsController {
       const classId = req.query.classId as string | undefined;
       const schoolId = req.query.schoolId as string | undefined;
 
-      const evaluations = await evaluationsService.listEvaluations(studentId, classId, schoolId);
+      const evaluations = await evaluationsService.listEvaluations(studentId, classId, schoolId, req.user);
       res.status(200).json({ status: 'success', data: { evaluations } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public async review(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = reviewEvaluationSchema.parse(req.body);
+      const actorUserId = req.user!.id;
+
+      const session = await evaluationsService.reviewEvaluationSession({
+        id: getParam(req.params.id),
+        adminFeedback: data.adminFeedback,
+        adminReviewStatus: data.adminReviewStatus,
+        actorUserId
+      });
+
+      res.status(200).json({ status: 'success', data: { session } });
     } catch (err) {
       next(err);
     }

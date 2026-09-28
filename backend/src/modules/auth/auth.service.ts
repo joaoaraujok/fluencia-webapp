@@ -17,7 +17,12 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail }
+      where: { email: normalizedEmail },
+      include: {
+        school: {
+          select: { id: true, name: true }
+        }
+      }
     });
 
     if (!user) {
@@ -55,7 +60,8 @@ export class AuthService {
         sub: user.id,
         role: user.role,
         email: user.email,
-        name: user.name
+        name: user.name,
+        schoolId: (user as any).schoolId || null
       },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN as any }
@@ -67,6 +73,8 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        schoolId: (user as any).schoolId || null,
+        school: (user as any).school || null,
         lastLoginAt: user.lastLoginAt
       },
       token
@@ -81,6 +89,8 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        schoolId: true,
+        school: { select: { id: true, name: true } },
         active: true,
         lastLoginAt: true,
         createdAt: true
