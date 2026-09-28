@@ -36,7 +36,6 @@ export const EnvironmentCheckScreen: React.FC<EnvironmentCheckScreenProps> = ({
   const [instructionsAccepted, setInstructionsAccepted] = useState<boolean>(false);
 
   useEffect(() => {
-    // 1. Inicia monitoramento de áudio do microfone
     let active = true;
     audioService
       .startMicMonitoring((vol) => {
@@ -105,195 +104,204 @@ export const EnvironmentCheckScreen: React.FC<EnvironmentCheckScreenProps> = ({
   const isEnvironmentReady = micGranted && instructionsAccepted;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8 animate-fadeIn pb-12">
-      {/* Topo com botão de fechar / cancelar */}
+    <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
+      {/* Topo com Identificação e Botão de Retorno */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold mb-1 border border-slate-200">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Controle de Qualidade Acústica</span>
+            <span>Preparação Acústica</span>
           </div>
-          <h2 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900">
-            Preparação do Ambiente Escolar
-          </h2>
-          <p className="text-slate-500 text-xs sm:text-sm font-medium">
-            Estudante em avaliação: <span className="font-bold text-slate-800">{childName || 'Estudante'}</span>
+          <h1 className="font-display font-bold text-2xl sm:text-3xl text-slate-900">
+            Ambiente e Microfone
+          </h1>
+          <p className="text-slate-500 text-xs sm:text-sm">
+            Estudante: <span className="font-semibold text-slate-800">{childName || 'Não selecionado'}</span>
           </p>
         </div>
+
         <button
           onClick={onCancel}
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          title="Cancelar e voltar"
+          className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          title="Cancelar e voltar à tela inicial"
+          aria-label="Cancelar e voltar"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Grid de Verificação e Orientações */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Painel Esquerdo: Instruções de Sala de Aula */}
-        <div className="card p-6 bg-white border-slate-200 space-y-4">
-          <h3 className="font-display font-bold text-lg text-slate-900 flex items-center gap-2">
-            <Info className="w-5 h-5 text-indigo-600" />
-            <span>Orientações para o Avaliador</span>
-          </h3>
+      {/* Grid de Verificação em Tema Claro Confortável */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Painel Esquerdo: Orientações de Aplicação */}
+        <div className="card p-5 space-y-4 bg-white">
+          <h2 className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+            <Info className="w-4 h-4 text-indigo-600" />
+            <span>Condições para a Avaliação</span>
+          </h2>
 
-          <ul className="space-y-3 text-xs sm:text-sm text-slate-600">
+          <ul className="space-y-3 text-xs text-slate-600">
             <li className="flex items-start gap-2.5">
-              <span className="p-1 rounded-md bg-amber-50 text-amber-600 shrink-0 mt-0.5">
-                <Tv className="w-4 h-4" />
+              <span className="p-1 rounded bg-slate-100 text-slate-600 shrink-0 mt-0.5">
+                <Tv className="w-3.5 h-3.5" />
               </span>
-              <span><strong>Ambiente silencioso:</strong> Desligue TV, rádio ou aparelhos com som no recinto.</span>
+              <span><strong>Ambiente silencioso:</strong> Evite salas com TV, música ou ruídos contínuos.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="p-1 rounded-md bg-amber-50 text-amber-600 shrink-0 mt-0.5">
-                <Users className="w-4 h-4" />
+              <span className="p-1 rounded bg-slate-100 text-slate-600 shrink-0 mt-0.5">
+                <Users className="w-3.5 h-3.5" />
               </span>
-              <span><strong>Evite conversas paralelas:</strong> O microfone pode captar vozes de fundo.</span>
+              <span><strong>Conversas externas:</strong> Não deve haver outras vozes próximas durante a leitura.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="p-1 rounded-md bg-amber-50 text-amber-600 shrink-0 mt-0.5">
-                <Wind className="w-4 h-4" />
+              <span className="p-1 rounded bg-slate-100 text-slate-600 shrink-0 mt-0.5">
+                <Wind className="w-3.5 h-3.5" />
               </span>
-              <span><strong>Ventilador ou ar direto:</strong> Não aponte vento para a entrada do microfone.</span>
+              <span><strong>Corrente de ar:</strong> Não direcione ventilador ou ar-condicionado direto no microfone.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="p-1 rounded-md bg-indigo-50 text-indigo-600 shrink-0 mt-0.5">
-                <Smartphone className="w-4 h-4" />
+              <span className="p-1 rounded bg-slate-100 text-slate-600 shrink-0 mt-0.5">
+                <Smartphone className="w-3.5 h-3.5" />
               </span>
-              <span><strong>Dispositivo estável:</strong> Mantenha sobre a mesa a cerca de 20 a 30 cm da criança.</span>
+              <span><strong>Posicionamento:</strong> Aparelho sobre a mesa a cerca de 25 cm da criança.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="p-1 rounded-md bg-emerald-50 text-emerald-600 shrink-0 mt-0.5">
-                <CheckCircle2 className="w-4 h-4" />
+              <span className="p-1 rounded bg-emerald-50 text-emerald-700 shrink-0 mt-0.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               </span>
-              <span><strong>Acolhimento:</strong> Deixe a criança confortável e sem pressão de desempenho.</span>
+              <span><strong>Acolhimento:</strong> Transmita calma e tranquilidade antes de iniciar.</span>
             </li>
           </ul>
 
           <div className="pt-3 border-t border-slate-100">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={instructionsAccepted}
                 onChange={(e) => setInstructionsAccepted(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span className="text-xs sm:text-sm font-bold text-slate-700">
-                O ambiente e dispositivo estão devidamente preparados
+              <span className="text-xs font-medium text-slate-700">
+                Confirmo que o ambiente está adequado e silencioso
               </span>
             </label>
           </div>
         </div>
 
-        {/* Painel Direito: Calibração em Tempo Real do Microfone */}
-        <div className="card p-6 bg-gradient-to-br from-slate-900 to-indigo-950 text-white space-y-5">
+        {/* Painel Direito: Sensibilidade e Monitoramento do Microfone (Clean Light) */}
+        <div className="card p-5 space-y-4 bg-white">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
-              <Mic className="w-5 h-5 text-indigo-400" />
+            <h2 className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+              <Mic className="w-4 h-4 text-indigo-600" />
               <span>Sensibilidade do Microfone</span>
-            </h3>
+            </h2>
+
             <span
-              className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full uppercase ${
+              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                 noiseStatus === 'optimal'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : noiseStatus === 'noisy'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
                   : noiseStatus === 'clipping'
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                  : 'bg-slate-700 text-slate-300'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
               }`}
             >
               {noiseStatus === 'optimal'
-                ? 'Nível Ótimo'
+                ? 'Nível Ideal'
                 : noiseStatus === 'noisy'
-                ? 'Ruído Elevado'
+                ? 'Ruído Alto'
                 : noiseStatus === 'clipping'
-                ? 'Saturação / Clipping'
-                : 'Aguardando Som'}
+                ? 'Muito Alto'
+                : 'Silêncio'}
             </span>
           </div>
 
-          {/* VU Meter Visual */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-slate-400 font-bold">
-              <span>Nível de Entrada</span>
-              <span>{micVolume}%</span>
+          {/* Medidor VU Suave */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-slate-500 font-medium">
+              <span>Captação de Entrada</span>
+              <span className="font-mono">{micVolume}%</span>
             </div>
-            <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
               <div
                 className={`h-full rounded-full transition-all duration-75 ${
                   micVolume > 85
                     ? 'bg-rose-500'
                     : micVolume > 45
-                    ? 'bg-amber-400'
-                    : 'bg-emerald-400'
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
                 }`}
                 style={{ width: `${Math.min(100, micVolume)}%` }}
               ></div>
             </div>
-            <p className="text-[11px] text-slate-400">
-              Peça para a criança falar "Oi" ou o próprio nome para verificar a barra verde.
+            <p className="text-[11px] text-slate-500">
+              Peça para a criança dizer uma palavra para observar a barra verde.
             </p>
           </div>
 
-          {/* Teste Rápido de Captura */}
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60 space-y-3">
+          {/* Teste Rápido de Áudio */}
+          <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300">Teste de Voz Rápido:</span>
+              <span className="text-xs font-semibold text-slate-700">Teste de Reconhecimento:</span>
               <button
                 onClick={handleTestSpeech}
                 disabled={isTestingAudio}
-                className="text-xs font-bold text-indigo-300 hover:text-white px-2.5 py-1 rounded-lg bg-indigo-600/50 hover:bg-indigo-600 transition-colors flex items-center gap-1.5"
+                className="btn-secondary text-xs px-2.5 py-1 rounded"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isTestingAudio ? 'animate-spin' : ''}`} />
-                <span>{isTestingAudio ? 'Ouvindo...' : 'Falar Palavra Teste'}</span>
+                <RefreshCw className={`w-3 h-3 text-slate-500 ${isTestingAudio ? 'animate-spin' : ''}`} />
+                <span>{isTestingAudio ? 'Ouvindo...' : 'Falar Palavra'}</span>
               </button>
             </div>
 
             {testTranscript ? (
-              <div className="p-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 text-xs space-y-1.5 font-mono">
+              <div className="p-2.5 rounded bg-white border border-slate-200 text-xs text-slate-800 space-y-1 font-mono">
                 <div className="flex items-center justify-between">
-                  <span>Groq Whisper: "{testTranscript}"</span>
+                  <span>Transcrito: "{testTranscript}"</span>
                   {speechTested && (
-                    <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-700/50">
-                      IA Pronta
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-sans font-semibold">
+                      Validado
                     </span>
                   )}
                 </div>
                 {testPedagogicalNote && (
-                  <p className="text-[11px] text-purple-300 font-sans italic">
-                    Gemini: {testPedagogicalNote}
+                  <p className="text-[11px] text-slate-600 font-sans italic">
+                    Análise: {testPedagogicalNote}
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-[11px] text-slate-400 italic">
-                {isTestingAudio ? 'Ouvindo áudio para Groq Whisper & Gemini...' : 'Clique em "Falar Palavra Teste" para validar o pipeline de IA.'}
+              <p className="text-[11px] text-slate-400">
+                {isTestingAudio ? 'Gravando amostra de teste...' : 'Teste opcional para verificar o áudio antes da avaliação.'}
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Rodapé com botão para prosseguir */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
+      {/* Rodapé: Ação de Continuidade com Hierarquia Clara */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
         <p className="text-xs text-slate-500 text-center sm:text-left">
-          O teste terá duração de <strong>10 segundos por palavra</strong> com cronômetro independente.
+          Tempo regulamentar de <strong>10 segundos</strong> por item com registro em milissegundos.
         </p>
 
-        <button
-          onClick={onReadyToStart}
-          disabled={!isEnvironmentReady}
-          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm transition-all shadow-md ${
-            isEnvironmentReady
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 scale-100 hover:scale-[1.02]'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }`}
-        >
-          <span>Iniciar Avaliação com Estudante</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={onCancel}
+            className="btn-secondary w-full sm:w-auto text-xs px-4 py-2.5"
+          >
+            Voltar
+          </button>
+
+          <button
+            onClick={onReadyToStart}
+            disabled={!isEnvironmentReady}
+            className="btn-primary w-full sm:w-auto text-xs px-5 py-2.5 font-semibold"
+            aria-label="Avançar para o início da avaliação"
+          >
+            <span>Iniciar Avaliação</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

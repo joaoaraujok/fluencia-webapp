@@ -1,11 +1,14 @@
 import React from 'react';
 import {
   Play,
-  Sparkles,
   Clock,
   UserCheck,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  BookOpen,
+  ArrowRight,
+  History,
+  Sparkles
 } from 'lucide-react';
 import { DifficultyLevel } from '../../types/question';
 import { Student } from '../../types/school';
@@ -18,209 +21,247 @@ interface HomeScreenProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onOpenStudentModal: () => void;
+  onOpenManual?: () => void;
   onInstallApp?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   activeStudent,
   onStartCompleteEvaluation,
-  onOpenStudentModal
+  onOpenHistory,
+  onOpenStudentModal,
+  onOpenManual
 }) => {
   const studentAsStudent = activeStudent as Student | undefined;
 
   return (
-    <div className="space-y-10 sm:space-y-14 max-w-6xl mx-auto py-2 sm:py-6">
-      {/* Seção Hero: Acolhedora e Focada */}
-      <div className="text-center max-w-2xl mx-auto space-y-6 pt-2">
-        {/* Chip do Estudante Selecionado */}
-        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-slate-200 shadow-2xs">
-          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs">
-            {activeStudent ? activeStudent.name.charAt(0).toUpperCase() : <UserCheck className="w-3.5 h-3.5" />}
+    <div className="space-y-12 max-w-5xl mx-auto py-4 sm:py-8">
+      {/* Seção Hero: Acolhedora, Profissional e com Foco Claro */}
+      <div className="text-center max-w-2xl mx-auto space-y-6">
+        {/* Identificação do Estudante Ativo */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-xs">
+          <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-bold text-[11px] shrink-0">
+            {activeStudent ? activeStudent.name.charAt(0).toUpperCase() : <UserCheck className="w-3 h-3 text-indigo-600" />}
           </div>
-          <span className="text-xs sm:text-sm font-bold text-slate-700">
-            {activeStudent ? activeStudent.name : 'Estudante em Avaliação'}
-            {studentAsStudent?.class ? ` (${studentAsStudent.class.name})` : ''}
+          <span className="text-xs sm:text-sm font-semibold text-slate-800">
+            {activeStudent ? activeStudent.name : 'Nenhum estudante selecionado'}
+            {studentAsStudent?.class ? ` • ${studentAsStudent.class.name}` : ''}
           </span>
           <button
             onClick={onOpenStudentModal}
-            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors ml-1 px-2 py-0.5 rounded-md hover:bg-indigo-50"
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors ml-1 px-2 py-0.5 rounded hover:bg-indigo-50"
+            aria-label="Trocar ou selecionar estudante"
           >
-            Trocar
+            {activeStudent ? 'Alterar' : 'Selecionar'}
           </button>
         </div>
 
-        {/* Título Principal */}
+        {/* Título Principal e Proposta de Valor */}
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-extrabold tracking-wide mb-1 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Fluência da Leitura Oral com Inteligência Artificial</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Avaliação Formativa e Diagnóstica da Leitura Oral</span>
           </div>
-          <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-slate-900 tracking-tight">
-            Fluenc<span className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 bg-clip-text text-transparent">IA</span>
-          </h2>
-          <p className="text-slate-500 text-base sm:text-lg leading-relaxed font-medium max-w-xl mx-auto">
-            Avaliação diagnóstica e formativa da oralidade e leitura infantil com cronômetro de 10s e análise fonética respeitosa.
+
+          <h1 className="font-display font-black text-3xl sm:text-5xl text-slate-900 tracking-tight leading-tight">
+            Fluência da Leitura com Acolhimento e Precisão
+          </h1>
+
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-xl mx-auto font-normal">
+            Acompanhe o desenvolvimento leitor com cronometragens regulamentares de 10 segundos, reconhecimento fonético respeitoso e classificação em 6 níveis pedagógicos.
           </p>
         </div>
 
-        {/* Botão de Destaque: Iniciar Avaliação Completa */}
+        {/* Botão de Ação Primária Unificado */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={onStartCompleteEvaluation}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-display font-bold text-lg shadow-xl shadow-indigo-200 hover:shadow-indigo-300 transform active:scale-[0.98] transition-all cursor-pointer"
+            className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-semibold shadow-md shadow-indigo-500/15 hover:shadow-indigo-500/25 cursor-pointer"
+            aria-label="Iniciar avaliação diagnóstica completa"
           >
-            <Play className="w-5 h-5 fill-current" />
+            <Play className="w-4 h-4 fill-current" />
             <span>Iniciar Avaliação Diagnóstica</span>
           </button>
+
+          {onOpenHistory && (
+            <button
+              onClick={onOpenHistory}
+              className="btn-secondary w-full sm:w-auto px-5 py-3.5 text-sm font-semibold cursor-pointer"
+              aria-label="Ver histórico de avaliações anteriores"
+            >
+              <History className="w-4 h-4 text-slate-500" />
+              <span>Ver Histórico</span>
+            </button>
+          )}
         </div>
 
-        {/* Informações da Janela e Silêncio */}
-        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-400 pt-1">
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-indigo-500" />
-            <span>Limite global de 4 minutos (240s)</span>
+        {/* Indicadores Pedagógicos Essenciais */}
+        <div className="flex flex-wrap items-center justify-center gap-y-2 gap-x-5 text-xs text-slate-600 pt-2 border-t border-slate-200/80 max-w-lg mx-auto">
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>10s por item (letras/palavras)</span>
           </span>
-          <span>•</span>
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>10s p/ letras e palavras • 60s texto</span>
+          <span className="hidden sm:inline text-slate-300">•</span>
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <Clock className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Limite global de 4 minutos</span>
           </span>
-          <span>•</span>
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-sky-500" />
-            <span>6 Níveis Pedagógicos Oficiais</span>
+          <span className="hidden sm:inline text-slate-300">•</span>
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+            <span>6 Níveis Oficiais (MEC/Saeb)</span>
           </span>
         </div>
       </div>
 
-      {/* Jornada Sequencial da Avaliação */}
+      {/* Jornada Pedagógica Sequencial e Adaptativa */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-display font-extrabold text-xl text-slate-900 leading-tight">
-              Jornada Pedagógica Sequencial
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              A criança realiza o teste completo e progressivo (máximo de 30 itens), do mais simples até frases
+            <h2 className="font-display font-bold text-lg sm:text-xl text-slate-900">
+              Jornada Pedagógica da Avaliação
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-normal">
+              O teste adapta-se progressivamente ao ritmo da criança, transitando de letras a pequenos textos narrativos.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Etapa 1 */}
-          <div className="card p-5 border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm transition-all space-y-3">
+          <div className="card p-5 space-y-3 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                 Etapa 1
               </span>
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span>10s / item</span>
               </span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900">
+              <h3 className="font-semibold text-sm text-slate-900">
                 Reconhecimento de Letras
-              </h4>
-              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                15 letras (vogais e consoantes). Avalia o domínio do alfabeto. Mínimo de 10 acertos para avançar.
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Identificação e som de vogais e consoantes. Avalia o domínio do princípio alfabético.
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-400">
-              A • E • B • P • M • D • T
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+              Vogais e consoantes canônicas
             </div>
           </div>
 
           {/* Etapa 2 */}
-          <div className="card p-5 border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition-all space-y-3">
+          <div className="card p-5 space-y-3 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                 Etapa 2
               </span>
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span>10s / item</span>
               </span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900">
+              <h3 className="font-semibold text-sm text-slate-900">
                 Palavras Isoladas
-              </h4>
-              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Palavras progressivas (simples, médias e complexas). Avalia decodificação, silabações e PCPM.
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Decodificação progressiva (sílabas simples e complexas) com cálculo de palavras corretas por minuto.
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-400">
-              BOLA • SAPO • CHUVA • PRATO
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+              Palavras simples, médias e complexas
             </div>
           </div>
 
           {/* Etapa 3 */}
-          <div className="card p-5 border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all space-y-3">
+          <div className="card p-5 space-y-3 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                 Etapa 3
               </span>
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span>Até 60s</span>
               </span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900">
+              <h3 className="font-semibold text-sm text-slate-900">
                 Leitura de Texto
-              </h4>
-              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Apresentada para candidatas a leitoras (21+ PCPM). Critério de fluência: ≥ 65 PCPM e &gt; 90% precisão.
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Apresentada para estudantes com leitura consolidada (≥ 21 PCPM), medindo velocidade e precisão textual.
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-400">
-              Histórias narrativas em contexto
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+              História narrativa contextualizada
             </div>
           </div>
 
           {/* Etapa 4 */}
-          <div className="card p-5 border-slate-200 bg-white hover:border-violet-300 hover:shadow-sm transition-all space-y-3">
+          <div className="card p-5 space-y-3 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                 Etapa 4
               </span>
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-violet-600" />
+              <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span>15s / item</span>
               </span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900">
-                Prosódia em Frases
-              </h4>
-              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Exclusiva para Leitor Fluente confirmado. Avalia entonação, pausas, agrupamento e melodia.
+              <h3 className="font-semibold text-sm text-slate-900">
+                Prosódia e Expressividade
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Avaliação de entonação, pausas adequadas à pontuação e melodia da leitura em frases completas.
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-400">
-              "O PATO NADA NO LAGO."
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+              Frases afirmativas e interrogativas
             </div>
           </div>
         </div>
 
-        {/* Botão de Rodapé para Iniciar com 1 Clique */}
-        <div className="p-6 rounded-2xl bg-indigo-50 border border-indigo-100 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
-          <div className="space-y-1 text-center sm:text-left">
-            <p className="font-bold text-sm text-indigo-950">
-              Pronto para iniciar a avaliação sequencial?
-            </p>
-            <p className="text-xs text-indigo-700">
-              A avaliação avança de forma adaptativa e inteligente, garantindo acolhimento e precisão pedagógica.
-            </p>
+        {/* Card Informativo com Orientação do Protocolo */}
+        <div className="card p-4 sm:p-5 bg-slate-50/80 border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-xs">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                Protocolo Adaptativo Respeitoso
+              </p>
+              <p className="text-xs text-slate-500">
+                A aplicação interrompe automaticamente etapas quando critérios de interrupção são atingidos, prevenindo desgaste da criança.
+              </p>
+            </div>
           </div>
-          <button
-            onClick={onStartCompleteEvaluation}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition-all cursor-pointer"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Começar Avaliação (30 Itens)</span>
-          </button>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {onOpenManual && (
+              <button
+                onClick={onOpenManual}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-xs cursor-pointer"
+                aria-label="Consultar manual de uso e guia do educador"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Consultar Guia</span>
+              </button>
+            )}
+
+            <button
+              onClick={onStartCompleteEvaluation}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+              aria-label="Iniciar agora"
+            >
+              <span>Iniciar agora</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

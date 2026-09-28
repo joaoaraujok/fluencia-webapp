@@ -7,28 +7,32 @@ O **FluencIA** é uma solução educacional desenvolvida para avaliação diagn�
 ## 🎯 Principais Características e Funcionalidades
 
 1. **Arquitetura Cliente-Servidor Resiliente:**
-   - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS + PWA (Progressive Web App com suporte offline via Dexie/IndexedDB).
+   - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4 + Design System de alto contraste + PWA com suporte offline via Dexie/IndexedDB.
    - **Backend:** Node.js + Express 5 + TypeScript + Prisma ORM + PostgreSQL.
-2. **Modelo Pedagógico de Avaliação:**
-   - **Nível 1 — Pré-Leitor:** Foco no processo de aquisição de leitura (decodificação de palavras isoladas, tempo de prontidão, precisão e comportamento de resposta).
-   - **Nível 2 — Leitor:** Foco na leitura fluente de palavras complexas e sentenças (precisão, velocidade, tempo de resposta, regularidade e expressividade).
-3. **Cronômetro Independente de 10 Segundos por Palavra:**
-   - Tempo regulamentar de 10.000 ms por item com registro em milissegundos do início da fala (`speechStartMs`), término (`speechEndMs`), tempo de resposta (`responseTimeMs`), tentativas, confiança e status detalhado (`CORRETO`, `POSSIVELMENTE_CORRETO`, `INCORRETO`, `SEM_RESPOSTA`, `NAO_RECONHECIDO` e `ERRO_TECNICO`).
-4. **Camada Abstrata de Reconhecimento de Voz (`SpeechRecognitionProvider`):**
-   - Desacoplamento da Web Speech API do navegador, permitindo futuros provedores de speech-to-text locais ou de nuvem sem alterar as regras de negócio.
-5. **Controle de Qualidade Acústica do Ambiente Escolar:**
+2. **Motor Adaptativo de Avaliação em 4 Etapas Progressivas:**
+   - **Etapa 1 — Letras (10s):** Vogais e consoantes canônicas.
+   - **Etapa 2 — Palavras Isoladas (10s):** Decodificação progressiva (simples, médias e complexas).
+   - **Etapa 3 — Texto em Contexto (até 60s):** Leitura de pequena narrativa com cálculo de PCPM e precisão textual.
+   - **Etapa 4 — Prosódia em Frases (15s):** Sentenças para confirmação de expressividade melódica.
+3. **Classificação Oficial em 6 Níveis de Leitura (MEC/Saeb):**
+   - *Pré-Leitor 1*, *Pré-Leitor 2*, *Pré-Leitor 3*, *Leitor Iniciante 1*, *Leitor Iniciante 2* e *Leitor Fluente* (≥ 65 PCPM e > 90% precisão).
+4. **Manual de Uso e Guia do Educador Integrado (In-App):**
+   - Modal interativo acessível em qualquer tela pelo cabeçalho ou home, com roteiro passo a passo, atalhos de teclado (Espaço/Seta para avançar, Tecla 1 para acerto forçado, Tecla 2 para erro, ESC para cancelar) e interpretação das 7 perguntas pedagógicas.
+5. **Cronômetro Independente e Teto Global de 4 Minutos (240s):**
+   - Janelas regulamentares de 10s para letras/palavras e teto global de 240 segundos para evitar desgaste ou sobrecarga cognitiva da criança.
+6. **Camada Abstrata de Reconhecimento de Voz (`SpeechRecognitionProvider`):**
+   - Suporte híbrido à Web Speech API nativa do navegador e pipeline neural com Groq Whisper v3 + Google Gemini para emissão de pareceres formativos automatizados.
+7. **Controle de Qualidade Acústica do Ambiente Escolar:**
    - Tela de calibração pré-avaliação com orientações de sala de aula, VU meter em tempo real, detecção de ruído ambiente/clipping e teste rápido de microfone.
-6. **Modo Silencioso Durante Resposta:**
+8. **Modo Silencioso Durante Resposta:**
    - Sistema 100% silencioso durante a janela de captação de fala da criança, garantindo que nenhum áudio de interface interfira no reconhecimento fonético.
-7. **Privacidade e Minimização de Dados (LGPD):**
+9. **Privacidade e Minimização de Dados (LGPD):**
    - Áudio processado localmente em tempo de execução sem armazenamento permanente de voz infantil.
    - Cadastro restrito de estudantes (sem CPF ou biometria desnecessária).
-8. **Controle de Acesso Baseado em Perfis (RBAC):**
-   - `SUPERADMIN`: Gestão global, usuários, escolas, turmas, alunos, banco de questões, parâmetros pedagógicos e auditoria imutável.
-   - `ADMIN`: Gestão administrativa escolar, turmas, estudantes e visualização/exportação de relatórios.
-   - `SUPERVISOR`: Aplicação pedagógica de avaliações, visualização de resultados e emissão de pareceres formativos.
-9. **Linguagem Pedagógica e Não Punitiva:**
-   - Relatórios e telas que utilizam exclusivamente termos pedagógicos e acolhedores ("oportunidade de prática", "em processo de apropriação"), proibindo qualquer diagnóstico clínico ou rotulação médica (dislexia, TDAH, distúrbios de fala).
+10. **Controle de Acesso Baseado em Perfis (RBAC):**
+    - `SUPERADMIN`: Gestão global, usuários, escolas, turmas, alunos, banco de questões, parâmetros pedagógicos e auditoria imutável.
+    - `ADMIN`: Gestão administrativa escolar, turmas, estudantes e visualização/exportação de relatórios.
+    - `SUPERVISOR`: Aplicação pedagógica de avaliações, visualização de resultados e emissão de pareceres formativos.
 
 ---
 
@@ -38,7 +42,7 @@ O **FluencIA** é uma solução educacional desenvolvida para avaliação diagn�
 fluencia-app/
 ├── backend/                       # Backend em Node.js + TypeScript + Express
 │   ├── prisma/                    # Schema do banco de dados e seeds
-│   │   ├── schema.prisma          # Modelos relacionais PostgreSQL
+│   │   ├── schema.prisma          # Modelos relacionais PostgreSQL com índices compostos
 │   │   └── seed.ts                # Seed inicial com SUPERADMIN seguro e 48+ questões
 │   ├── src/
 │   │   ├── config/                # Variáveis de ambiente validadas e prisma client
@@ -53,16 +57,18 @@ fluencia-app/
 │   ├── tsconfig.json
 │   └── .env.example
 ├── docs/                          # Documentação técnica e pedagógica
-│   ├── ARQUITETURA-PROPOSTA.md    # Especificação arquitetural dos 10 pilares
-│   └── CADERNO-DE-ORIENTACOES.md  # Caderno de Orientações com 25 seções detalhadas
+│   ├── ARQUITETURA-DO-SISTEMA.md  # Especificação técnica e arquitetural oficial
+│   ├── ARQUITETURA-PROPOSTA.md    # Especificação consolidada dos pilares de engenharia
+│   └── CADERNO-DE-ORIENTACOES.md  # Caderno de Orientações com 24 seções detalhadas
 ├── src/                           # Frontend React + TypeScript + PWA
-│   ├── components/                # Componentes de UI (admin, children, evaluation, results, etc.)
+│   ├── components/                # Componentes de UI (admin, children, evaluation, common, etc.)
+│   │   └── common/UserManualModal.tsx # Manual interativo in-app
 │   ├── contexts/                  # Contexto de autenticação e sessão JWT
 │   ├── data/                      # Banco de questões local para fallback offline
 │   ├── services/                  # Provedores de áudio, fala, repositório e API REST
-│   ├── styles/                    # Estilos CSS e tokens de design
+│   ├── styles/                    # Design tokens e folhas de estilo CSS
 │   ├── types/                     # Tipagens TypeScript estritas
-│   ├── App.tsx                    # Orquestrador da aplicação
+│   ├── App.tsx                    # Orquestrador da aplicação com code-splitting
 │   └── main.tsx                   # Ponto de montagem React
 ├── package.json
 ├── tsconfig.json

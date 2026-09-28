@@ -9,7 +9,8 @@ import {
   LogIn,
   LogOut,
   RefreshCw,
-  LayoutDashboard
+  LayoutDashboard,
+  BookOpen
 } from 'lucide-react';
 import { Student } from '../../types/school';
 import { ChildProfile } from '../../types/child';
@@ -26,6 +27,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenAdmin: () => void;
   onOpenLogin: () => void;
+  onOpenManual?: () => void;
   canInstallPWA: boolean;
   onInstallPWA: () => void;
   isOnline: boolean;
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenAdmin,
   onOpenLogin,
+  onOpenManual,
   canInstallPWA,
   onInstallPWA,
   isOnline
@@ -76,22 +79,30 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="header-bar print:hidden">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+      <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
         {/* Logo & Marca FluencIA */}
-        <div onClick={onGoHome} className="cursor-pointer group" title="FluencIA - Início">
+        <div
+          onClick={onGoHome}
+          className="cursor-pointer group focus:outline-hidden"
+          title="FluencIA - Início"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onGoHome?.(); }}
+        >
           <FluenciaLogo size="md" variant="full" />
         </div>
 
         {/* Ações Rápidas & Sessão Institucional */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Botão de Home rápido se estiver navegando */}
+        <nav className="flex items-center gap-1.5 sm:gap-2" aria-label="Navegação Principal">
+          {/* Botão de Retorno ao Início */}
           {currentView !== 'home' && onGoHome && (
             <button
               onClick={onGoHome}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-xs font-bold text-indigo-700 transition-colors"
-              title="Voltar para a tela inicial"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs transition-colors"
+              title="Voltar para o início"
+              aria-label="Voltar para a tela inicial"
             >
-              <Home className="w-3.5 h-3.5" />
+              <Home className="w-3.5 h-3.5 text-indigo-600" />
               <span className="hidden sm:inline">Início</span>
             </button>
           )}
@@ -99,47 +110,53 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Botão de Estudante Ativo */}
           <button
             onClick={onOpenStudentModal}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-colors text-xs font-bold text-slate-700 shadow-2xs"
-            title="Selecionar ou cadastrar estudante da turma"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-800 shadow-xs"
+            title="Selecionar ou cadastrar estudante"
+            aria-label="Selecionar ou cadastrar estudante"
           >
-            <User className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="max-w-[85px] sm:max-w-[130px] truncate">
-              {activeStudent ? activeStudent.name : 'Estudante'}
+            <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-100">
+              {activeStudent ? activeStudent.name.charAt(0).toUpperCase() : <User className="w-3 h-3" />}
+            </span>
+            <span className="max-w-[90px] sm:max-w-[140px] truncate">
+              {activeStudent ? activeStudent.name : 'Selecionar Estudante'}
             </span>
           </button>
 
-          {/* Sincronização Offline Pendente */}
+          {/* Indicador de Sincronização Offline Pendente */}
           {pendingSync > 0 && (
             <button
               onClick={handleSyncNow}
               disabled={isSyncing || !isOnline}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold transition-colors shadow-2xs"
-              title="Avaliações pendentes de envio para o servidor"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold transition-colors shadow-xs"
+              title="Avaliações pendentes de sincronização com o servidor"
+              aria-label="Sincronizar avaliações pendentes"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-amber-600 ${isSyncing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{pendingSync} pendente{pendingSync > 1 ? 's' : ''}</span>
             </button>
           )}
 
-          {/* Painel Institucional para Usuários Logados */}
+          {/* Gestão Institucional / Autenticação */}
           {isAuthenticated ? (
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 onClick={onOpenAdmin}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-2xs"
-                title="Acessar Painel de Gestão"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-xs"
+                title="Acessar Painel de Gestão Pedagógica"
+                aria-label="Acessar Painel de Gestão"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Gestão</span>
-                <span className="text-[10px] bg-indigo-800/80 px-1.5 py-0.2 rounded-md ml-0.5">
+                <span className="text-[10px] bg-indigo-700/90 text-indigo-100 px-1.5 py-0.5 rounded ml-0.5 font-bold uppercase tracking-wider">
                   {user?.role === 'SUPERADMIN' ? 'SUPER' : user?.role}
                 </span>
               </button>
 
               <button
                 onClick={logout}
-                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                title="Sair da conta institucional"
+                className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                title="Encerrar sessão"
+                aria-label="Sair da conta"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -147,51 +164,72 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenLogin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-700 text-xs font-bold transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-xs"
               title="Entrar com conta institucional"
+              aria-label="Entrar na conta institucional"
             >
-              <LogIn className="w-3.5 h-3.5" />
+              <LogIn className="w-3.5 h-3.5 text-indigo-600" />
               <span className="hidden sm:inline">Entrar</span>
             </button>
           )}
 
-          {/* Botão de Instalar App no Celular */}
+          {/* Botão de Instalar PWA */}
           {canInstallPWA && (
             <button
               onClick={onInstallPWA}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200/70 transition-colors"
-              title="Instalar aplicativo no celular"
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200 transition-colors"
+              title="Instalar aplicativo no dispositivo"
+              aria-label="Instalar aplicativo"
             >
-              <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
+              <Smartphone className="w-3.5 h-3.5 text-slate-500" />
               <span>Instalar</span>
             </button>
           )}
 
-          {/* Aviso se estiver offline */}
+          {/* Indicador de Status Offline */}
           {!isOnline && (
-            <div className="p-2 rounded-xl text-amber-500 bg-amber-50 border border-amber-200/80" title="Modo offline ativado">
+            <div
+              className="p-1.5 rounded-lg text-amber-700 bg-amber-50 border border-amber-200"
+              title="Modo offline: os dados serão gravados localmente"
+              aria-label="Modo offline"
+            >
               <WifiOff className="w-4 h-4" />
             </div>
+          )}
+
+          {/* Manual de Uso / Guia do Educador */}
+          {onOpenManual && (
+            <button
+              onClick={onOpenManual}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+              title="Manual de Uso e Protocolo Pedagógico"
+              aria-label="Abrir manual de uso do sistema"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="hidden sm:inline">Manual</span>
+            </button>
           )}
 
           {/* Histórico */}
           <button
             onClick={onOpenHistory}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            title="Histórico de Avaliações"
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Histórico de avaliações"
+            aria-label="Histórico de avaliações"
           >
-            <History className="w-4.5 h-4.5" />
+            <History className="w-4 h-4" />
           </button>
 
           {/* Configurações */}
           <button
             onClick={onOpenSettings}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            title="Configurações"
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Configurações do sistema"
+            aria-label="Configurações do sistema"
           >
-            <Settings className="w-4.5 h-4.5" />
+            <Settings className="w-4 h-4" />
           </button>
-        </div>
+        </nav>
       </div>
     </header>
   );

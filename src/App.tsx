@@ -37,6 +37,9 @@ const SettingsModal = React.lazy(() =>
 const InstallAppModal = React.lazy(() =>
   import('./components/common/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
 );
+const UserManualModal = React.lazy(() =>
+  import('./components/common/UserManualModal').then((m) => ({ default: m.UserManualModal }))
+);
 
 type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
 
@@ -55,6 +58,7 @@ const MainApp: React.FC = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isAudioPermModalOpen, setIsAudioPermModalOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
 
   // PWA
   const { canInstall, isInstalled, isOnline, triggerInstall } = usePWAInstall();
@@ -147,6 +151,7 @@ const MainApp: React.FC = () => {
           onOpenSettings={() => setIsSettingsModalOpen(true)}
           onOpenAdmin={() => setView('admin')}
           onOpenLogin={() => setIsLoginModalOpen(true)}
+          onOpenManual={() => setIsManualModalOpen(true)}
           canInstallPWA={true}
           onInstallPWA={() => setIsInstallModalOpen(true)}
           isOnline={isOnline}
@@ -163,6 +168,7 @@ const MainApp: React.FC = () => {
             onOpenHistory={() => setView('history')}
             onOpenSettings={() => setIsSettingsModalOpen(true)}
             onOpenStudentModal={() => setIsStudentModalOpen(true)}
+            onOpenManual={() => setIsManualModalOpen(true)}
             onInstallApp={() => setIsInstallModalOpen(true)}
           />
         )}
@@ -206,7 +212,14 @@ const MainApp: React.FC = () => {
           </>
         )}
 
-        <React.Suspense fallback={<div className="flex items-center justify-center p-12 text-slate-400 font-bold text-xs">Carregando painel...</div>}>
+        <React.Suspense
+          fallback={
+            <div className="flex flex-col items-center justify-center p-16 space-y-3 text-slate-500 animate-fadeIn" role="status" aria-live="polite">
+              <div className="w-7 h-7 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin"></div>
+              <span className="text-xs font-medium text-slate-600">Carregando...</span>
+            </div>
+          }
+        >
           {view === 'result' && activeSession && (
             <ResultDashboard
               session={activeSession}
@@ -265,6 +278,13 @@ const MainApp: React.FC = () => {
             canInstallNative={canInstall}
             onNativeInstall={triggerInstall}
             isInstalled={isInstalled}
+          />
+        )}
+
+        {isManualModalOpen && (
+          <UserManualModal
+            isOpen={isManualModalOpen}
+            onClose={() => setIsManualModalOpen(false)}
           />
         )}
       </React.Suspense>

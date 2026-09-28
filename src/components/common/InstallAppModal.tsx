@@ -112,67 +112,66 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden animate-scaleUp flex flex-col max-h-[92vh]">
+    <div className="modal-overlay animate-fadeIn">
+      <div className="modal-content max-w-lg p-0 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Cabeçalho */}
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 p-5 sm:p-6 text-white relative shrink-0">
+        <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50/70 relative shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-200/60 transition-colors"
             title="Fechar"
+            aria-label="Fechar modal"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-1">
             <FluenciaLogo size="md" variant="icon" />
             <div>
-              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-amber-300 mb-1">
-                <Sparkles className="w-3 h-3" /> Aplicativo Nativo & IA
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-full mb-1">
+                <Sparkles className="w-3 h-3 text-indigo-600" /> Modo Standalone & PWA
               </span>
-              <h3 className="font-display font-extrabold text-xl sm:text-2xl leading-tight text-white flex items-center gap-1">
-                Instalar Fluenc<span className="text-amber-300">IA</span>
+              <h3 className="font-display font-bold text-xl sm:text-2xl text-slate-900 leading-tight">
+                Instalar FluencIA
               </h3>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-indigo-100 font-medium leading-relaxed mt-2">
-            Experiência 100% de app real: sem barra de pesquisa, sem abas do navegador e com foco total na criança.
+          <p className="text-xs text-slate-500 font-normal leading-relaxed mt-1">
+            Uso em tela cheia sem barras do navegador, otimizado para celulares e tablets escolares.
           </p>
 
           {/* Abas de Navegação */}
-          <div className="flex items-center bg-black/20 p-1 rounded-2xl mt-4 text-xs font-bold gap-1">
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg mt-3 text-xs font-semibold gap-1">
             <button
               onClick={() => setActiveTab('benefits')}
-              className={`flex-1 py-1.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'benefits'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Benefícios & Instalação</span>
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Instalação</span>
             </button>
             <button
               onClick={() => setActiveTab('android')}
-              className={`flex-1 py-1.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'android'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
-              <span>🤖</span>
               <span>Android</span>
             </button>
             <button
               onClick={() => setActiveTab('ios')}
-              className={`flex-1 py-1.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'ios'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
-              <span>🍎</span>
-              <span>iPhone / iPad</span>
+              <span>iOS / iPad</span>
             </button>
           </div>
         </div>

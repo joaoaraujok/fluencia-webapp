@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Sparkles, X } from 'lucide-react';
+import { Download, Smartphone, X } from 'lucide-react';
 
 interface PWAInstallBannerProps {
   canInstall: boolean;
@@ -15,18 +15,18 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({
   if (!canInstall) return null;
 
   return (
-    <div className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white px-4 py-3 shadow-md">
+    <div className="w-full bg-indigo-50/90 border-b border-indigo-100 text-slate-800 px-4 py-2.5 transition-colors" role="region" aria-label="Aviso de instalação">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-            <Sparkles className="w-5 h-5 text-amber-300" />
+          <div className="w-8 h-8 rounded-lg bg-white border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-xs">
+            <Smartphone className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-wide">
-              Instale o Fluenc<span className="text-amber-300">IA</span> no seu dispositivo!
+            <p className="text-xs sm:text-sm font-semibold text-slate-900">
+              Instale o FluencIA no seu celular ou tablet
             </p>
-            <p className="text-xs text-indigo-100 hidden sm:block">
-              Acesso rápido em tela cheia com Inteligência Artificial e modo offline, ideal para tablets e celulares.
+            <p className="text-xs text-slate-500 hidden sm:block">
+              Uso em tela cheia com gravação de áudio contínua e funcionamento sem internet.
             </p>
           </div>
         </div>
@@ -34,15 +34,17 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onInstall}
-            className="flex items-center gap-1.5 bg-amber-400 text-indigo-950 px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-amber-300 transition-colors shadow-sm"
+            className="btn-primary text-xs py-1.5 px-3 font-semibold"
+            aria-label="Instalar aplicativo"
           >
-            <Download className="w-4 h-4" />
-            <span>Instalar PWA</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Instalar</span>
           </button>
           <button
             onClick={onDismiss}
-            className="p-1.5 text-white/80 hover:text-white rounded-lg hover:bg-white/10"
-            title="Fechar"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-indigo-100/50 transition-colors"
+            title="Dispensar aviso"
+            aria-label="Dispensar aviso"
           >
             <X className="w-4 h-4" />
           </button>

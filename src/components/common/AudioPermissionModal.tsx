@@ -51,11 +51,11 @@ export const AudioPermissionModal: React.FC<AudioPermissionModalProps> = ({
           </button>
         </div>
 
-        <div className="mx-auto w-20 h-20 rounded-3xl bg-indigo-50 border-4 border-indigo-100 flex items-center justify-center text-indigo-600 mb-4 shadow-xs">
-          <Mic className="w-10 h-10 animate-bounce" />
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-3 shadow-xs">
+          <Mic className="w-8 h-8" />
         </div>
 
-        <h2 className="font-display font-bold text-2xl text-slate-900 mb-2">
+        <h2 className="font-display font-bold text-xl sm:text-2xl text-slate-900 mb-1.5">
           Permissão de Microfone
         </h2>
 

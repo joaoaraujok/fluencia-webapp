@@ -120,15 +120,15 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
 
         {/* Seletor de Turma */}
         {classes.length > 0 && !isAdding && (
-          <div className="mb-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <div className="mb-4 p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
+            <label className="form-label flex items-center gap-1.5 mb-1 text-slate-800">
               <Users className="w-3.5 h-3.5 text-indigo-600" />
               <span>Turma Escolar:</span>
             </label>
             <select
               value={selectedClassId}
               onChange={(e) => handleClassChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="form-select bg-white font-medium"
             >
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -140,14 +140,14 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
         )}
 
         {!isAdding ? (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Estudantes da Turma ({students.length})
               </span>
               <button
                 onClick={() => setIsAdding(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>Novo Estudante</span>
@@ -156,11 +156,11 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
 
             <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
               {isLoading ? (
-                <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-lg border border-dashed border-slate-200">
                   Carregando estudantes da turma...
                 </div>
               ) : students.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-lg border border-dashed border-slate-200">
                   Nenhum estudante cadastrado nesta turma ainda.
                 </div>
               ) : (
@@ -173,22 +173,22 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
                         onSelectStudent(st);
                         onClose();
                       }}
-                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
                         isSelected
                           ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-600/30'
-                          : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
                             isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           {st.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-slate-800 leading-tight">{st.name}</p>
+                          <p className="font-semibold text-xs sm:text-sm text-slate-800 leading-tight">{st.name}</p>
                           <p className="text-[11px] text-slate-400">
                             {st.registrationNumber ? `Matrícula: ${st.registrationNumber}` : 'Sem matrícula informada'}
                           </p>
@@ -197,7 +197,7 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
 
                       {isSelected && (
                         <span className="p-1 rounded-full bg-indigo-600 text-white">
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-3 h-3" />
                         </span>
                       )}
                     </div>
@@ -207,69 +207,69 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSaveStudent} className="space-y-3.5 animate-fadeIn">
-            <h4 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+          <form onSubmit={handleSaveStudent} className="space-y-3 animate-fadeIn">
+            <h4 className="font-semibold text-sm text-slate-800 flex items-center gap-1.5 pb-1 border-b border-slate-100">
               <UserPlus className="w-4 h-4 text-indigo-600" />
               <span>Cadastrar Novo Estudante na Turma</span>
             </h4>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Nome Completo *</label>
+              <label className="form-label">Nome Completo *</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: João da Silva Santos"
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="form-input"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Data de Nascimento</label>
+                <label className="form-label">Data de Nascimento</label>
                 <input
                   type="date"
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="form-input"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Matrícula / ID Escolar</label>
+                <label className="form-label">Matrícula / ID Escolar</label>
                 <input
                   type="text"
                   value={registrationNumber}
                   onChange={(e) => setRegistrationNumber(e.target.value)}
                   placeholder="Ex: MAT-2026-44"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="form-input"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Observações Pedagógicas</label>
+              <label className="form-label">Observações Pedagógicas</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
                 placeholder="Ex: Participa ativamente de leituras com apoio visual..."
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="form-input"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors"
+                className="btn-secondary text-xs px-3.5 py-2"
               >
                 Voltar
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors shadow-sm"
+                className="btn-primary text-xs px-4 py-2"
               >
                 Salvar Estudante
               </button>

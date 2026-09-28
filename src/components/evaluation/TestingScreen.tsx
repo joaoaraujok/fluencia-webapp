@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Mic, X, SkipForward, Clock, Check, XCircle, Sparkles, Cpu } from 'lucide-react';
+import { Mic, X, SkipForward, Clock, Check, XCircle, Sparkles } from 'lucide-react';
 import { QuestionItem } from '../../types/question';
 import { AdaptiveEvaluationStage } from '../../types/evaluation';
 
@@ -80,78 +80,58 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
 
   const getStageBadge = () => {
     if (isLetter || currentStage === 'letters') {
-      return {
-        label: 'Etapa 1: Reconhecimento de Letras',
-        limit: 'Máx. 10s',
-        color: 'text-amber-800 bg-amber-50 border-amber-200'
-      };
+      return { label: 'Etapa 1: Letras', limit: '10s' };
     }
     if (isWord || currentStage === 'words') {
-      return {
-        label: 'Etapa 2: Palavras Isoladas',
-        limit: 'Máx. 10s',
-        color: 'text-indigo-800 bg-indigo-50 border-indigo-200'
-      };
+      return { label: 'Etapa 2: Palavras', limit: '10s' };
     }
     if (isText || currentStage === 'text') {
-      return {
-        label: 'Etapa 3: Leitura de Texto em Contexto',
-        limit: 'Até 60s',
-        color: 'text-emerald-800 bg-emerald-50 border-emerald-200'
-      };
+      return { label: 'Etapa 3: Texto', limit: '60s' };
     }
-    return {
-      label: 'Etapa 4: Prosódia em Frases (Leitor Fluente)',
-      limit: 'Máx. 15s',
-      color: 'text-violet-800 bg-violet-50 border-violet-200'
-    };
+    return { label: 'Etapa 4: Frases', limit: '15s' };
   };
 
   const stage = getStageBadge();
 
   return (
-    <div className="testing-screen min-h-[90vh] flex flex-col justify-between py-2">
-      {/* Topo: Barra do Limite Global de 4 minutos & Progresso da Etapa */}
-      <div className="w-full max-w-2xl mx-auto space-y-2 pt-1 px-3">
-        {/* Barra Superior de Tempo Global (4 minutos = 240s) */}
-        <div className="flex items-center justify-between gap-3 text-xs bg-slate-900/5 px-3 py-1.5 rounded-full border border-slate-200/80">
-          <div className="flex items-center gap-1.5 font-bold text-slate-700">
-            <Clock className={`w-3.5 h-3.5 ${isAnalyzingAi ? 'text-amber-500 animate-pulse' : 'text-indigo-600 animate-spin-slow'}`} />
-            <span>Tempo Global:</span>
-            <span className={`font-mono font-black ${isAnalyzingAi ? 'text-amber-700' : 'text-indigo-700'}`}>
+    <div className="testing-screen min-h-[88vh] flex flex-col justify-between py-2 animate-fadeIn">
+      {/* Topo Limpo: Progresso do Teste e Controles do Supervisor */}
+      <div className="w-full max-w-2xl mx-auto space-y-2 px-2">
+        {/* Barra Superior Discreta de Tempo Global */}
+        <div className="flex items-center justify-between text-xs text-slate-500 bg-white px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-xs">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Clock className={`w-3.5 h-3.5 ${isAnalyzingAi ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} />
+            <span>Tempo da Avaliação:</span>
+            <span className="font-mono font-semibold text-slate-800">
               {formatGlobalTime(globalElapsedSeconds)}
             </span>
             {isAnalyzingAi && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                PAUSADO (IA)
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                Pausado
               </span>
             )}
             <span className="text-slate-400 font-normal">/ 04:00</span>
           </div>
 
-          <div className="flex-1 max-w-[120px] h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 ${
-                globalElapsedSeconds > 210 ? 'bg-rose-500' : 'bg-indigo-600'
-              }`}
-              style={{ width: `${globalProgressPercent}%` }}
-            ></div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-slate-500">
+              {stage.label} ({stage.limit})
+            </span>
+            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  globalElapsedSeconds > 210 ? 'bg-rose-500' : 'bg-indigo-600'
+                }`}
+                style={{ width: `${globalProgressPercent}%` }}
+              ></div>
+            </div>
           </div>
-
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold shadow-2xs">
-            <Cpu className="w-3 h-3 text-purple-600" />
-            <span>Groq Whisper v3 + Gemini 3.8 Flash</span>
-          </div>
-
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            {stage.limit}
-          </span>
         </div>
 
-        {/* Barra de Progresso do Item da Etapa */}
+        {/* Barra de Progresso da Etapa Atual */}
         <div className="flex items-center justify-between gap-3">
-          <div className="testing-header-progress shadow-xs flex-1">
-            <span className="text-xs font-bold text-slate-500 min-w-[50px]">
+          <div className="testing-header-progress flex-1">
+            <span className="text-xs font-semibold text-slate-500 min-w-[50px]">
               {currentIndex + 1} de {totalItems}
             </span>
             <div className="testing-progress-bar">
@@ -160,20 +140,17 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
                 style={{ width: `${progressPercent}%` }}
               ></div>
             </div>
-            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${stage.color}`}>
-              {stage.label}
-            </span>
           </div>
 
-          {/* Ações do Supervisor / Educador */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Controles Discretos para o Educador */}
+          <div className="flex items-center gap-1.5 shrink-0" aria-label="Ações do Avaliador">
             {onMarkResult && (
               <>
                 <button
                   type="button"
                   onClick={() => onMarkResult('CORRETO')}
-                  className="px-2.5 py-1.5 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1 text-xs font-bold shadow-2xs cursor-pointer"
-                  title="Marcar como Acerto (Atalho: 1 ou Enter)"
+                  className="px-2.5 py-1 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Marcar como Correto (Atalho: 1 ou Enter)"
                 >
                   <Check className="w-3.5 h-3.5 text-emerald-600" />
                   <span className="hidden sm:inline">Acertou</span>
@@ -182,7 +159,7 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => onMarkResult('INCORRETO')}
-                  className="px-2.5 py-1.5 rounded-full text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all flex items-center gap-1 text-xs font-bold shadow-2xs cursor-pointer"
+                  className="px-2.5 py-1 rounded-md text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                   title="Marcar como Incorreto (Atalho: 2 ou X)"
                 >
                   <XCircle className="w-3.5 h-3.5 text-rose-600" />
@@ -196,66 +173,66 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
                 type="button"
                 onClick={onSkip}
                 disabled={isAnalyzingAi}
-                className="px-3 py-1.5 rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center gap-1.5 text-xs font-bold shadow-2xs cursor-pointer disabled:opacity-50"
-                title="Concluir gravação e analisar fala com IA (Atalho: Espaço ou Seta Direita)"
+                className="px-2.5 py-1 rounded-md text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                title="Avançar item (Atalho: Espaço ou Seta Direita)"
               >
-                <SkipForward className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Concluir Leitura</span>
+                <SkipForward className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Avançar</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={onCancel}
-              className="p-1.5 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-              title="Interromper avaliação (ESC)"
+              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              title="Encerrar avaliação (ESC)"
+              aria-label="Encerrar avaliação"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Centro: Letra, Palavra, Texto Corrido ou Frase com Tipografia Otimizada */}
+      {/* Centro: Elemento em Leitura (Foco Total e Limpo para a Criança) */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div
           className={`testing-word-container w-full max-w-2xl transition-all duration-200 ${
             isSuccessFeedback
-              ? 'scale-105 ring-4 ring-emerald-400 bg-emerald-50/90 rounded-3xl shadow-lg shadow-emerald-100'
+              ? 'scale-105 ring-2 ring-emerald-500 bg-emerald-50/50 rounded-2xl'
               : ''
           }`}
         >
           {isLetter && (
-            <div className="py-4 text-center">
-              <span className="font-display font-black text-8xl sm:text-9xl text-slate-900 tracking-wider animate-fadeIn select-text drop-shadow-xs">
+            <div className="py-6 text-center select-text">
+              <span className="font-display font-black text-8xl sm:text-9xl text-slate-900 tracking-wider">
                 {item.text}
               </span>
             </div>
           )}
 
           {isWord && (
-            <div className="py-4 text-center">
-              <h1 className="testing-display-word animate-fadeIn select-text text-5xl sm:text-7xl font-display font-black text-slate-900">
+            <div className="py-6 text-center select-text">
+              <h1 className="testing-display-word text-5xl sm:text-7xl font-display font-black text-slate-900">
                 {item.text}
               </h1>
             </div>
           )}
 
           {isText && (
-            <div className="p-6 sm:p-8 bg-white/95 rounded-3xl border border-slate-200 shadow-sm text-left max-w-xl mx-auto">
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-3 flex items-center gap-1.5">
-                <span>📖</span>
-                <span>{item.category ? `História: ${item.category}` : 'Leitura de Texto'}</span>
+            <div className="p-6 sm:p-8 bg-white rounded-2xl border border-slate-200 shadow-xs text-left max-w-xl mx-auto select-text">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                {item.category ? `História: ${item.category}` : 'Leitura de Texto'}
               </div>
-              <p className="font-display text-xl sm:text-2xl leading-relaxed text-slate-800 font-medium select-text">
+              <p className="text-lg sm:text-xl leading-relaxed text-slate-800 font-medium font-child">
                 {item.text}
               </p>
             </div>
           )}
 
           {isPhrase && (
-            <div className="py-4 text-center max-w-xl mx-auto">
-              <h2 className="testing-display-phrase animate-fadeIn select-text text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-snug">
+            <div className="py-4 text-center max-w-xl mx-auto select-text">
+              <h2 className="testing-display-phrase text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-snug">
                 {item.text}
               </h2>
             </div>
@@ -263,9 +240,9 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
         </div>
       </div>
 
-      {/* Rodapé: Microfone Acolhedor com Ondas Sonoras e Cronômetro do Item */}
-      <div className="testing-footer-status pb-4">
-        <div className="mic-pulse-wrapper">
+      {/* Rodapé: Microfone Acolhedor e Cronômetro Discreto */}
+      <div className="testing-footer-status pb-2">
+        <div className="mic-pulse-wrapper" aria-label="Status do microfone">
           {isMicListening && (
             <>
               <div className="mic-pulse-ring-outer"></div>
@@ -274,63 +251,57 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
           )}
 
           <div
-            className={`mic-circle transition-all duration-200 ${
+            className={`mic-circle ${
               isAnalyzingAi
-                ? 'bg-gradient-to-tr from-indigo-600 to-purple-600 scale-110 shadow-lg shadow-indigo-300 ring-4 ring-indigo-300'
+                ? 'bg-indigo-600 scale-105'
                 : isSuccessFeedback
-                ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 scale-110 shadow-emerald-300'
+                ? 'bg-emerald-600 scale-105'
                 : ''
             }`}
           >
             {isAnalyzingAi ? (
-              <Sparkles className="w-8 h-8 text-white animate-spin" />
+              <Sparkles className="w-6 h-6 text-white animate-spin" />
             ) : (
               <Mic
-                className={`w-8 h-8 ${
-                  isSuccessFeedback ? 'text-white' : 'text-amber-300'
-                } transition-transform ${isMicListening ? 'scale-110' : 'scale-100'}`}
+                className={`w-6 h-6 text-white transition-transform ${isMicListening ? 'scale-105' : 'scale-100'}`}
               />
             )}
           </div>
         </div>
 
         <div className="text-center space-y-1.5">
-          <p className="testing-prompt-text justify-center font-bold text-slate-700">
-            <span>🎙️</span>
-            <span>
-              {isLetter
-                ? 'Fale o nome ou som da letra'
-                : isWord
-                ? 'Fale a palavra com calma'
-                : isText
-                ? 'Leia a historinha no seu ritmo'
-                : 'Fale a frase com entonação'}
-            </span>
+          <p className="text-xs sm:text-sm font-semibold text-slate-600">
+            {isLetter
+              ? 'Fale o som ou o nome da letra'
+              : isWord
+              ? 'Leia a palavra com calma'
+              : isText
+              ? 'Leia o texto no seu ritmo'
+              : 'Leia a frase em voz alta'}
           </p>
 
-          {/* Feedback de voz capturada e processamento da IA */}
+          {/* Feedback Suave em Tempo Real */}
           {isAnalyzingAi ? (
-            <div className="text-xs font-black text-indigo-900 bg-indigo-100/95 border-2 border-indigo-400 px-4 py-2 rounded-full animate-pulse max-w-sm mx-auto shadow-md flex items-center justify-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600 animate-spin" />
-              <span>Analisando com Groq Whisper & Gemini...</span>
+            <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5 animate-pulse">
+              <Sparkles className="w-3 h-3 text-indigo-600 animate-spin" />
+              <span>Analisando resposta...</span>
             </div>
           ) : isSuccessFeedback ? (
-            <div className="text-xs font-black text-emerald-800 bg-emerald-200 border-2 border-emerald-400 px-4 py-1 rounded-full animate-bounce max-w-sm mx-auto shadow-sm flex items-center justify-center gap-1.5">
-              <span>✨</span>
-              <span>Reconhecido pela IA: "{liveTranscript || item.text}"</span>
+            <div className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+              <Check className="w-3 h-3 text-emerald-600" />
+              <span>Reconhecido: "{liveTranscript || item.text}"</span>
             </div>
           ) : liveTranscript ? (
-            <div className="text-xs font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3.5 py-1 rounded-full animate-fadeIn max-w-sm mx-auto shadow-sm truncate flex items-center justify-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>{liveTranscript.includes('detectada') ? 'Gravando voz para análise...' : `Voz: "${liveTranscript}"`}</span>
+            <div className="text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 px-3 py-0.5 rounded-full inline-flex items-center gap-1.5 max-w-sm truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span className="truncate">Voz captada: "{liveTranscript}"</span>
             </div>
           ) : null}
 
-          {/* Contador Visual do Item (10s ou 15s) */}
+          {/* Badge do Cronômetro do Item (10s) */}
           <div className="pt-1">
-            <div className="inline-flex items-center gap-1.5 testing-timer-badge">
-              <span>⏱️</span>
-              <span className="font-mono">{formattedItemTime}</span>
+            <div className="testing-timer-badge">
+              <span>{formattedItemTime}</span>
             </div>
           </div>
         </div>
