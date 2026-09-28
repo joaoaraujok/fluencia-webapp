@@ -5,6 +5,7 @@ import { AudioPermissionModal } from './components/common/AudioPermissionModal';
 import { HomeScreen } from './components/home/HomeScreen';
 import { PreparationScreen } from './components/evaluation/PreparationScreen';
 import { TestingScreen } from './components/evaluation/TestingScreen';
+import { ComprehensionScreen } from './components/evaluation/ComprehensionScreen';
 import { EnvironmentCheckScreen } from './components/evaluation/EnvironmentCheckScreen';
 import { StudentSelectionModal } from './components/children/StudentSelectionModal';
 import { usePWAInstall } from './hooks/usePWAInstall';
@@ -45,7 +46,8 @@ const UserManualModal = React.lazy(() =>
 type ViewMode = 'home' | 'environment_check' | 'evaluating' | 'result' | 'history' | 'admin';
 
 const MainApp: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, hasRole } = useAuth();
+  const isSuperAdminOrAdmin = isAuthenticated && (hasRole('SUPERADMIN') || hasRole('ADMIN'));
   const [view, setView] = useState<ViewMode>('home');
   const [activeStudent, setActiveStudent] = useState<Student | ChildProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -95,6 +97,11 @@ const MainApp: React.FC = () => {
 
   // Preparar itens e ir para verificação do ambiente
   const prepareEvaluationFlow = async (mode: EvaluationMode) => {
+    if (isSuperAdminOrAdmin) {
+      alert('SuperAdmins e Administradores possuem perfil exclusivo de gestão e avaliação de relatórios, não realizando testes diretamente com as crianças.');
+      return;
+    }
+
     const items = await repository.getEvaluationQuestions(mode, settings.itemsPerLevel);
     if (!items || items.length === 0) {
       alert('Nenhum item pedagógico disponível para este nível no momento.');
@@ -170,6 +177,7 @@ const MainApp: React.FC = () => {
             onOpenSettings={() => setIsSettingsModalOpen(true)}
             onOpenStudentModal={() => setIsStudentModalOpen(true)}
             onOpenManual={() => setIsManualModalOpen(true)}
+            onOpenAdmin={() => setView('admin')}
             onInstallApp={() => setIsInstallModalOpen(true)}
           />
         )}
@@ -191,7 +199,16 @@ const MainApp: React.FC = () => {
               />
             )}
 
-            {engine.phase === 'testing' && engine.currentItem && (
+            {engine.phase === 'testing' && engine.currentStage === 'comprehension' && (
+              <ComprehensionScreen
+                questions={engine.comprehensionQuestions}
+                textTitle={engine.lastReadTextTitle}
+                onSubmitAnswers={engine.submitComprehensionAnswers}
+                onCancel={handleCancelEvaluation}
+              />
+            )}
+
+            {engine.phase === 'testing' && engine.currentStage !== 'comprehension' && engine.currentItem && (
               <TestingScreen
                 item={engine.currentItem}
                 currentIndex={engine.currentIndex}

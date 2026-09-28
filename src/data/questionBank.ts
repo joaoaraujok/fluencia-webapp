@@ -1,4 +1,5 @@
 import { DifficultyLevel, LevelInfo, QuestionItem } from '../types/question';
+import { ComprehensionQuestionItem } from '../types/evaluation';
 
 export const LEVEL_DEFINITIONS: Record<DifficultyLevel, LevelInfo> = {
   1: {
@@ -141,6 +142,137 @@ export const TEXT_BANK: QuestionItem[] = [
     difficulty: 3
   }
 ];
+
+// Banco Oficial de 3 Perguntas de Compreensão por Texto (Seção 10)
+export const TEXT_COMPREHENSION_QUESTIONS: Record<string, ComprehensionQuestionItem[]> = {
+  txt_01: [
+    {
+      id: 'q_txt01_1',
+      textId: 'txt_01',
+      question: 'Quem é Mimoso e como ele é descrito no início da história?',
+      expectedAnswer: 'Mimoso é um gato muito bonito.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt01_2',
+      textId: 'txt_01',
+      question: 'O que o gatinho toma na tigela todas as manhãs?',
+      expectedAnswer: 'Leite fresco.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt01_3',
+      textId: 'txt_01',
+      question: 'Onde Mimoso costuma dormir quando a noite chega?',
+      expectedAnswer: 'Ele sobe no sofá e dorme bem tranquilo.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_02: [
+    {
+      id: 'q_txt02_1',
+      textId: 'txt_02',
+      question: 'Para onde Lucas e Ana foram no domingo de sol com a família?',
+      expectedAnswer: 'Foram passear no bosque com a família.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt02_2',
+      textId: 'txt_02',
+      question: 'Quais delícias eles levaram na cesta para o piquenique?',
+      expectedAnswer: 'Cesta cheia de frutas, suco de laranja e um bolo gostoso.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt02_3',
+      textId: 'txt_02',
+      question: 'O que mostra que o dia foi divertido para as crianças no bosque?',
+      expectedAnswer: 'Elas correram na grama e viram lindos pássaros cantando nas árvores.',
+      questionType: 'inferencial'
+    }
+  ]
+};
+
+/**
+ * Retorna exatamente as 3 perguntas de compreensão associadas ao texto
+ */
+export function getComprehensionQuestionsForText(textId: string): ComprehensionQuestionItem[] {
+  return TEXT_COMPREHENSION_QUESTIONS[textId] || [];
+}
+
+// Banco Oficial de Pseudopalavras (Decodificação Fonológica Pura - Seção 6)
+export const PSEUDOWORD_BANK: QuestionItem[] = [
+  // Dissílabas Canônicas (CV-CV)
+  { id: 'pseudo_01', text: 'BALO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_02', text: 'TIPO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_03', text: 'GADE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_04', text: 'MUTA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_05', text: 'FEBO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_06', text: 'DATO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_07', text: 'SOFE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_08', text: 'RANO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_09', text: 'VIMO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_10', text: 'LUBA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_11', text: 'PAVE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_12', text: 'ZEPO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+
+  // Médias: Dígrafos e Encontros Consonantais
+  { id: 'pseudo_13', text: 'COTRA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_14', text: 'BLAPO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_15', text: 'TARTA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_16', text: 'PELTO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_17', text: 'FRINHO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
+  { id: 'pseudo_18', text: 'CHURTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'pseudopalavra' },
+  { id: 'pseudo_19', text: 'LHARCO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_lh', category: 'pseudopalavra' },
+  { id: 'pseudo_20', text: 'FLOME', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_21', text: 'CLUTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_22', text: 'GRENO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+
+  // Polissílabas e Estruturas Complexas
+  { id: 'pseudo_23', text: 'TAPEROCA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_24', text: 'MARAFOTE', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_25', text: 'LAMINUDO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_26', text: 'PICOTELO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_27', text: 'BORFELETA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_28', text: 'DURPATE', level: 3, type: 'pseudoword', syllablesCount: 3, syllableStructure: 'complex_cvc', category: 'pseudopalavra' }
+];
+
+/**
+ * Seleciona exatamente 10 letras aleatórias sem repetição para a Etapa 1
+ */
+export function selectRandomLetters(count: number = 10): QuestionItem[] {
+  const letters = [...LETTER_BANK];
+  for (let i = letters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [letters[i], letters[j]] = [letters[j], letters[i]];
+  }
+  return letters.slice(0, Math.min(count, letters.length));
+}
+
+/**
+ * Seleciona pseudopalavras balanceadas para a etapa de pseudopalavras
+ */
+export function selectPseudowords(count: number = 10): QuestionItem[] {
+  const simple = PSEUDOWORD_BANK.filter(p => p.level === 1);
+  const medium = PSEUDOWORD_BANK.filter(p => p.level === 2);
+  const complex = PSEUDOWORD_BANK.filter(p => p.level === 3);
+
+  const shuffle = <T>(arr: T[]): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const selected = [
+    ...shuffle(simple).slice(0, 5),
+    ...shuffle(medium).slice(0, 3),
+    ...shuffle(complex).slice(0, 2)
+  ];
+  return selected.slice(0, count);
+}
 
 export const QUESTION_BANK: QuestionItem[] = [
   // ==========================================

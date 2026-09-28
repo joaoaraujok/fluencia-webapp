@@ -88,49 +88,63 @@ describe('SpeechAiService - Whisper Groq e Google Gemini', () => {
       expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
     });
 
-    it('deve chamar o Gemini e retornar a análise estruturada em JSON', async () => {
+    it('deve usar Fast-Path para palavras exatas sem chamar Gemini', async () => {
+      const result = await service.analyzePedagogicalReading('BOLA', 'bola', 'word');
+
+      expect(result.status).toBe('CORRETO');
+      expect(result.similarity).toBe(1.0);
+      expect(result.observedError).toBe('');
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it('deve chamar o Gemini quando houver divergência/erro e retornar a análise estruturada em JSON', async () => {
       const mockAiResponse = {
-        status: 'CORRETO',
-        similarity: 1.0,
-        observedError: '',
-        phonemeFindings: [],
-        pedagogicalNote: 'Leitura com pronúncia canônica precisa.'
+        status: 'INCORRETO',
+        similarity: 0.5,
+        observedError: 'Substituição de fonema consonantal /l/ por /t/.',
+        phonemeFindings: ['Troca de /l/ por /t/'],
+        pedagogicalNote: 'A criança realizou a troca do fonema lateral /l/ pelo oclusivo /t/.'
       };
 
       mockGeminiGenerateContent.mockResolvedValue({
         text: JSON.stringify(mockAiResponse)
       });
 
-      const result = await service.analyzePedagogicalReading('BOLA', 'bola', 'word');
+      const result = await service.analyzePedagogicalReading('BOLA', 'bota', 'word');
 
       expect(mockGeminiGenerateContent).toHaveBeenCalled();
       const callArgs = mockGeminiGenerateContent.mock.calls[0][0];
-      expect(callArgs.model).toBe('gemini-3.5-flash-lite');
+      expect(callArgs.model).toBe('gemini-3.8-flash');
       expect(callArgs.config.responseMimeType).toBe('application/json');
 
-      expect(result.status).toBe('CORRETO');
-      expect(result.similarity).toBe(1.0);
-      expect(result.pedagogicalNote).toBe('Leitura com pronúncia canônica precisa.');
+      expect(result.status).toBe('INCORRETO');
+      expect(result.similarity).toBe(0.5);
+      expect(result.observedError).toContain('Substituição');
+      expect(result.pedagogicalNote).toContain('troca');
     });
 
-    it('deve reconhecer "Amy", "Emy" e "eme" como CORRETO para a letra M (artefato acústico do Whisper)', async () => {
+    it('deve reconhecer "Amy", "Emy" e "eme" como CORRETO para a letra M (artefato acústico do Whisper via Fast-Path)', async () => {
       const resultAmy = await service.analyzePedagogicalReading('M', 'Amy', 'letter');
       expect(resultAmy.status).toBe('CORRETO');
       expect(resultAmy.similarity).toBe(1.0);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
 
       const resultEme = await service.analyzePedagogicalReading('M', 'eme', 'letter');
       expect(resultEme.status).toBe('CORRETO');
       expect(resultEme.similarity).toBe(1.0);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
     });
 
-    it('deve reconhecer "Annie" e "Any" como CORRETO para a letra N e "Eli" para a letra L', async () => {
+    it('deve reconhecer "Annie" e "Any" como CORRETO para a letra N e "Eli" para a letra L via Fast-Path', async () => {
       const resultN = await service.analyzePedagogicalReading('N', 'Annie', 'letter');
       expect(resultN.status).toBe('CORRETO');
       expect(resultN.similarity).toBe(1.0);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
 
       const resultL = await service.analyzePedagogicalReading('L', 'Eli', 'letter');
       expect(resultL.status).toBe('CORRETO');
       expect(resultL.similarity).toBe(1.0);
+      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
     });
   });
 });

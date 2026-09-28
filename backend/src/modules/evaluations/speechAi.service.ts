@@ -65,11 +65,12 @@ export class SpeechAiService {
   ): Promise<AudioTranscriptionResult> {
     const fileStream = fs.createReadStream(filePath);
 
-    // Prompt conciso apenas para contexto do idioma português brasileiro, sem citar letras ou alvos específicos
-    // para não interferir na decodificação do Whisper de áudios curtos.
+    console.log(`[Groq Whisper] Iniciando transcrição de áudio: tipo=${itemType || 'word'}, alvo="${targetText || ''}"`);
     const prompt = itemType === 'text' && targetText
       ? `História e leitura contextual em português brasileiro: ${targetText.slice(0, 100)}`
-      : 'Transcrição fonética e leitura infantil em português do Brasil.';
+      : targetText
+        ? `Leitura de alfabetização em português brasileiro: ${targetText}`
+        : 'Transcrição fonética e leitura infantil em português do Brasil.';
 
     const transcription = await this.groq.audio.transcriptions.create({
       file: fileStream,
@@ -84,6 +85,8 @@ export class SpeechAiService {
     const duration = typeof transcription === 'object' && transcription && 'duration' in transcription
       ? (transcription as any).duration
       : undefined;
+
+    console.log(`[Groq Whisper] Transcrição concluída: "${text.trim()}" (duração: ${duration ?? '?'}s)`);
 
     return {
       text: text.trim(),
@@ -100,7 +103,7 @@ export class SpeechAiService {
     transcriptText: string,
     itemType: string
   ): Promise<PedagogicalAnalysisResult> {
-    // Caso de transcrição vazia ou ausente
+    // 1. Caso de transcrição vazia ou ausente -> Resposta imediata (0ms)
     if (!transcriptText || !transcriptText.trim()) {
       return {
         status: 'SEM_RESPOSTA',
@@ -112,6 +115,11 @@ export class SpeechAiService {
     }
 
     const cleanTarget = targetText.toUpperCase().trim();
+    const cleanTargetNorm = cleanTarget
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9]/g, '');
+
     const cleanTranscript = transcriptText
       .toUpperCase()
       .normalize('NFD')
@@ -120,20 +128,28 @@ export class SpeechAiService {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Validação fonética direta para letras (evita falhas de homófonos em inglês do Whisper como "Amy" para M)
+    const cleanTranscriptNorm = cleanTranscript.replace(/[^A-Z0-9\s]/g, '').trim();
+    const transcriptWords = cleanTranscriptNorm.split(/\s+/).filter(Boolean);
+
+    // 2. Fast-Path Ultrarrápido (<1ms) para acertos diretos
+    // Evita o overhead de 2-4 segundos da chamada HTTP ao Gemini quando a transcrição já é conclusiva
+
+    // Caso Letra:
     if (itemType === 'letter') {
       const allowedAliases = WHISPER_LETTER_ALIASES[cleanTarget] || [cleanTarget];
-      const words = cleanTranscript
-        .split(' ')
-        .map((w) => w.trim())
-        .filter((w) => w && !['E', 'EH', 'O', 'A', 'LETRA', 'UM', 'UMA', 'DE', 'DA', 'DO'].includes(w));
+      const wordsWithoutFillers = transcriptWords.filter(
+        (w) => !['E', 'EH', 'O', 'A', 'LETRA', 'UM', 'UMA', 'DE', 'DA', 'DO', 'OQUE', 'QUE'].includes(w)
+      );
 
-      const isDirectMatch =
+      const isDirectLetterMatch =
+        cleanTranscript === cleanTarget ||
+        cleanTranscriptNorm === cleanTargetNorm ||
         allowedAliases.includes(cleanTranscript) ||
-        words.some((word) => allowedAliases.includes(word)) ||
-        (cleanTranscript.length === 1 && cleanTranscript === cleanTarget);
+        allowedAliases.includes(cleanTranscriptNorm) ||
+        wordsWithoutFillers.some((w) => allowedAliases.includes(w) || w === cleanTarget || w === cleanTargetNorm);
 
-      if (isDirectMatch) {
+      if (isDirectLetterMatch) {
+        console.log(`[Fast-Path] Acerto direto para letra "${cleanTarget}" (transcrição: "${transcriptText}")`);
         return {
           status: 'CORRETO',
           similarity: 1.0,
@@ -144,6 +160,54 @@ export class SpeechAiService {
       }
     }
 
+    // Caso Palavra:
+    if (itemType === 'word') {
+      const wordsWithoutFillers = transcriptWords.filter(
+        (w) => !['O', 'A', 'E', 'EH', 'É', 'UM', 'UMA', 'EU', 'DISSE', 'FALEI', 'TÁ'].includes(w)
+      );
+
+      const isDirectWordMatch =
+        cleanTranscript === cleanTarget ||
+        cleanTranscriptNorm === cleanTargetNorm ||
+        (wordsWithoutFillers.length === 1 && wordsWithoutFillers[0] === cleanTargetNorm) ||
+        (wordsWithoutFillers.length > 1 && wordsWithoutFillers[wordsWithoutFillers.length - 1] === cleanTargetNorm);
+
+      if (isDirectWordMatch) {
+        console.log(`[Fast-Path] Acerto direto para palavra "${cleanTarget}" (transcrição: "${transcriptText}")`);
+        return {
+          status: 'CORRETO',
+          similarity: 1.0,
+          observedError: '',
+          phonemeFindings: [],
+          pedagogicalNote: `Leitura correta e fluida da palavra "${targetText}".`
+        };
+      }
+    }
+
+    // Caso Pseudopalavra:
+    if (itemType === 'pseudoword') {
+      const wordsWithoutFillers = transcriptWords.filter(
+        (w) => !['O', 'A', 'E', 'EH', 'É', 'UM', 'UMA'].includes(w)
+      );
+
+      const isDirectPseudoMatch =
+        cleanTranscript === cleanTarget ||
+        cleanTranscriptNorm === cleanTargetNorm ||
+        (wordsWithoutFillers.length === 1 && wordsWithoutFillers[0] === cleanTargetNorm);
+
+      if (isDirectPseudoMatch) {
+        console.log(`[Fast-Path] Decodificação correta da pseudopalavra "${cleanTarget}" (transcrição: "${transcriptText}")`);
+        return {
+          status: 'CORRETO',
+          similarity: 1.0,
+          observedError: '',
+          phonemeFindings: [],
+          pedagogicalNote: `Decodificação fonológica precisa da pseudopalavra "${targetText}".`
+        };
+      }
+    }
+
+    // 3. Análise Pedagógica com Google Gemini 3.8 Flash (para erros, divergências fonológicas ou textos)
     const systemPrompt = `Você é um especialista em avaliação pedagógica de leitura e alfabetização infantil em língua portuguesa (Brasil), seguindo as diretrizes do MEC e do SAEB Alfabetização.
 Sua função é avaliar com acolhimento a tentativa de leitura de uma criança dos anos iniciais do Ensino Fundamental.
 
@@ -153,38 +217,27 @@ Texto pronunciado/transcrito: "${transcriptText}"
 
 Regras Específicas por Tipo de Item:
 - Se tipo de item for "letter" (letra isolada):
-  A criança pode legitimamente produzir:
-  a) O NOME da letra em português (exemplo: "bê" ou "be" para B, "cê" ou "ce" para C, "dê" ou "de" para D, "éfe" ou "efe" para F, "gê" ou "ge" para G, "agá" ou "aga" para H, "jota" para J, "cá" para K, "éle" ou "ele" para L, "ême" ou "eme" para M, "êne" ou "ene" para N, "pê" ou "pe" para P, "quê" ou "que" para Q, "érre" ou "erre" para R, "éssi" ou "esse" para S, "tê" ou "te" para T, "vê" ou "ve" para V, "dáblio" para W, "xis" para X, "ípsilon" para Y, "zê" ou "ze" para Z).
-  b) O SOM / FONEMA da letra (exemplo: som /b/, /d/, /f/, /m/, /s/, /v/, /a/, etc.).
-  c) A letra grafada isolada (ex: "B", "A", "M", etc.).
-  d) Fala intermediária como "letra B", "é o B", "letra bê", "o som é bê".
-  e) ATENÇÃO A ARTEFATOS DO WHISPER: O Whisper frequentemente transcreve o som em português de letras como palavras/nomes em inglês com fonética idêntica:
-     - "Amy" ou "Emy" para a letra M (som "eme" /ˈɛmi/);
-     - "Any" ou "Annie" para a letra N (som "ene" /ˈɛni/);
-     - "Eli" ou "Elly" para a letra L (som "ele" /ˈɛli/);
-     - "Air" para a letra R (som "erre");
-     - "Agá" ou "Aga" para a letra H;
-     - "Dáblio" para a letra W.
-  TODAS essas opções para a respectiva letra alvo são 100% VÁLIDAS E CORRETAS ('CORRETO', similarity: 1.0). NUNCA classifique como incorreto por esses artefatos fonéticos.
+  A criança pode legitimamente produzir o nome da letra (ex: "bê", "cê", "eme"), o fonema (/b/, /m/) ou a própria letra.
+  Whisper pode transcrever "Amy" para M, "Any" para N, "Eli" para L, "Air" para R. Considere CORRETO nesses casos.
 - Se tipo de item for "word":
-  Leitura da palavra alvo (ex: "BOLA", "DADO"), aceitando ritmo infantil e sotaques regionais normais.
-- Se tipo de item for "text" (história / narrativa em contexto):
-  Leitura de texto corrido. Avalie o percentual de palavras decodificadas com precisão e o encadeamento das orações. Se a criança decodificou a maior parte da história (> 75%) de modo compreensível, classifique como 'CORRETO' ou 'POSSIVELMENTE_CORRETO'. Aceite pausas entre sentenças.
-- Se tipo de item for "phrase" (frase):
-  Leitura de frase simples. Aceite ritmo pausado e autocorreções normais.
+  Leitura da palavra alvo (ex: "BOLA", "DADO"), aceitando ritmo infantil e sotaques regionais.
+- Se tipo de item for "pseudoword" (pseudopalavra):
+  Avalie estritamente a decodificação grafema-fonema pela rota fonológica.
+  NUNCA aceite uma palavra real substituta (ex: para "BALO" falar "BOLA" é INCORRETO).
+- Se tipo de item for "text":
+  Leitura de história corrida. Avalie o percentual de palavras decodificadas com precisão (> 75% = CORRETO/POSSIVELMENTE_CORRETO).
+- Se tipo de item for "phrase":
+  Leitura de frase simples.
 
-Diretrizes de Retorno:
-1. "status":
-   - 'CORRETO': Leitura precisa, nome correto da letra, som correto da letra, artefato fonético do Whisper da letra, ou palavra correspondente.
-   - 'POSSIVELMENTE_CORRETO': Silabação pausada bem sucedida, troca sutil de vogal átona final ou autocorreção espontânea.
-   - 'INCORRETO': Letra ou palavra substantivamente diferente (ex: letra 'D' quando o alvo era 'B', ou outra palavra sem relação).
-   - 'SEM_RESPOSTA': Apenas se não houver leitura inteligível do item proposto.
-2. "similarity": Número decimal de 0.0 a 1.0 (atribua 1.0 para acertos plenos).
-3. "observedError": Descrição pedagógica objetiva e direta do erro ou variação (string vazia "" se correto).
-4. "phonemeFindings": Lista de observações fonéticas específicas encontradas (array vazio [] se correto).
-5. "pedagogicalNote": Feedback construtivo, acolhedor e humanizado para o professor/mediador. NUNCA utilize termos médicos, diagnósticos clínicos ou patologizantes (como 'dislexia', 'dislalia', 'distúrbio', 'deficiência'). Foque no processo formativo de alfabetização.`;
+Retorne JSON estruturado com:
+1. "status": 'CORRETO' | 'POSSIVELMENTE_CORRETO' | 'INCORRETO' | 'SEM_RESPOSTA'
+2. "similarity": Número decimal de 0.0 a 1.0
+3. "observedError": Descrição pedagógica objetiva e direta do erro (string vazia "" se correto)
+4. "phonemeFindings": Lista de observações fonéticas (array vazio [] se correto)
+5. "pedagogicalNote": Feedback acolhedor e humanizado. NUNCA use termos médicos/patologizantes.`;
 
-    const modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+    console.log(`[Google Gemini] Enviando para análise pedagógica detalhada: tipo=${itemType}, alvo="${targetText}", transcrição="${transcriptText}"`);
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
     let rawResponseText = '';
 
     for (const modelName of modelsToTry) {
@@ -194,6 +247,8 @@ Diretrizes de Retorno:
           contents: systemPrompt,
           config: {
             responseMimeType: 'application/json',
+            temperature: 0.1,
+            maxOutputTokens: 250,
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -223,9 +278,12 @@ Diretrizes de Retorno:
         });
 
         rawResponseText = response.text || '';
-        if (rawResponseText) break;
+        if (rawResponseText) {
+          console.log(`[Google Gemini] Análise pedagógica concluída com sucesso via modelo [${modelName}]`);
+          break;
+        }
       } catch (geminiError: any) {
-        console.warn(`[Gemini] Erro transitório no modelo ${modelName}:`, geminiError?.message || geminiError);
+        console.warn(`[Google Gemini] Erro transitório no modelo ${modelName}:`, geminiError?.message || geminiError);
       }
     }
 
@@ -241,7 +299,7 @@ Diretrizes de Retorno:
         };
       }
     } catch (parseError) {
-      console.warn('Falha no parse da resposta estruturada do Gemini:', rawResponseText, parseError);
+      console.warn('[Google Gemini] Falha no parse da resposta estruturada:', rawResponseText, parseError);
     }
 
     const fallbackCleanTranscript = transcriptText.trim().toLowerCase();
@@ -292,6 +350,7 @@ Retorne um JSON com:
 - "strengths": 2 a 3 pontos fortes demonstrados pela criança (ex: reconhecimento de sílabas canônicas, fluência em vogais).
 - "recommendations": 3 a 4 intervenções pedagógicas lúdicas recomendadas para os próximos passos na sala de aula.`;
 
+    console.log(`[Google Gemini] Gerando síntese pedagógica da sessão para ${input.childName || 'Estudante'}...`);
     const modelsToTry = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
 
     for (const modelName of modelsToTry) {
@@ -321,10 +380,11 @@ Retorne um JSON com:
 
         const text = response.text || '';
         if (text) {
+          console.log(`[Google Gemini] Síntese pedagógica gerada com sucesso via [${modelName}]`);
           return JSON.parse(text.trim());
         }
       } catch (err: any) {
-        console.warn(`[Gemini] Erro transitório no modelo ${modelName} para síntese:`, err?.message || err);
+        console.warn(`[Google Gemini] Erro transitório no modelo ${modelName} para síntese:`, err?.message || err);
       }
     }
 

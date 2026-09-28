@@ -39,8 +39,11 @@ router.use(authMiddleware);
 router.get('/', controller.list.bind(controller));
 router.get('/:id', controller.getById.bind(controller));
 
-// Aplicar/salvar avaliação persistente (SUPERVISOR e SUPERADMIN)
-router.post('/', requireRole('SUPERVISOR', 'SUPERADMIN'), controller.create.bind(controller));
+// Aplicar/salvar avaliação de teste de crianças (Exclusivo SUPERVISOR - SuperAdmin e Admin não realizam testes)
+router.post('/', requireRole('SUPERVISOR'), controller.create.bind(controller));
+
+// Atualizar observações da avaliação pelo supervisor responsável
+router.patch('/:id/notes', requireRole('SUPERVISOR'), controller.updateNotes.bind(controller));
 
 // Avaliar/revisar relatório de supervisores (ADMIN e SUPERADMIN)
 router.patch('/:id/review', requireRole('ADMIN', 'SUPERADMIN'), controller.review.bind(controller));

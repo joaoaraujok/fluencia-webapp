@@ -40,6 +40,7 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
 }) => {
   const isLetter = item.type === 'letter';
   const isWord = item.type === 'word' || (!item.type && item.level <= 3);
+  const isPseudoword = item.type === 'pseudoword';
   const isText = item.type === 'text';
   const isPhrase = item.type === 'phrase' || item.level === 4;
 
@@ -80,15 +81,18 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
 
   const getStageBadge = () => {
     if (isLetter || currentStage === 'letters') {
-      return { label: 'Etapa 1: Letras', limit: '10s' };
+      return { label: 'Etapa 1: Letras', limit: '10 itens' };
+    }
+    if (isPseudoword || currentStage === 'pseudowords') {
+      return { label: 'Etapa 3: Pseudopalavras', limit: 'Decodificação' };
     }
     if (isWord || currentStage === 'words') {
-      return { label: 'Etapa 2: Palavras', limit: '10s' };
+      return { label: 'Etapa 2: Palavras Reais', limit: '10s' };
     }
     if (isText || currentStage === 'text') {
-      return { label: 'Etapa 3: Texto', limit: '60s' };
+      return { label: 'Etapa 4: Leitura de Texto', limit: '60s' };
     }
-    return { label: 'Etapa 4: Frases', limit: '15s' };
+    return { label: 'Etapa 5: Frases', limit: '15s' };
   };
 
   const stage = getStageBadge();
@@ -206,15 +210,15 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
           {isLetter && (
             <div className="py-6 text-center select-text">
               <span className="font-display font-black text-8xl sm:text-9xl text-slate-900 tracking-wider">
-                {item.text}
+                {item.text.toLocaleUpperCase('pt-BR')}
               </span>
             </div>
           )}
 
-          {isWord && (
+          {(isWord || isPseudoword) && (
             <div className="py-6 text-center select-text">
               <h1 className="testing-display-word text-5xl sm:text-7xl font-display font-black text-slate-900">
-                {item.text}
+                {item.text.toLocaleUpperCase('pt-BR')}
               </h1>
             </div>
           )}
@@ -222,18 +226,18 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
           {isText && (
             <div className="p-6 sm:p-8 bg-white rounded-2xl border border-slate-200 shadow-xs text-left max-w-xl mx-auto select-text">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                {item.category ? `História: ${item.category}` : 'Leitura de Texto'}
+                {item.category ? `HISTÓRIA: ${item.category.toLocaleUpperCase('pt-BR')}` : 'LEITURA DE TEXTO'}
               </div>
-              <p className="text-lg sm:text-xl leading-relaxed text-slate-800 font-medium font-child">
-                {item.text}
+              <p className="text-lg sm:text-xl leading-relaxed text-slate-800 font-medium font-child uppercase">
+                {item.text.toLocaleUpperCase('pt-BR')}
               </p>
             </div>
           )}
 
           {isPhrase && (
             <div className="py-4 text-center max-w-xl mx-auto select-text">
-              <h2 className="testing-display-phrase text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-snug">
-                {item.text}
+              <h2 className="testing-display-phrase text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-snug uppercase">
+                {item.text.toLocaleUpperCase('pt-BR')}
               </h2>
             </div>
           )}
@@ -273,10 +277,12 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
           <p className="text-xs sm:text-sm font-semibold text-slate-600">
             {isLetter
               ? 'Fale o som ou o nome da letra'
+              : isPseudoword
+              ? 'Leia a palavra inventada exatamente como se escreve'
               : isWord
               ? 'Leia a palavra com calma'
               : isText
-              ? 'Leia o texto no seu ritmo'
+              ? 'Leia a história no seu ritmo'
               : 'Leia a frase em voz alta'}
           </p>
 

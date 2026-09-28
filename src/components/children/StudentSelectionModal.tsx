@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, UserPlus, Check, User, Users } from 'lucide-react';
+import { X, UserPlus, Check, User, Users, AlertTriangle } from 'lucide-react';
 import { Student, SchoolClass } from '../../types/school';
 import { repository } from '../../services/repository';
 import { api } from '../../services/api';
@@ -19,6 +19,7 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
   onSelectStudent
 }) => {
   const { hasRole, isAuthenticated } = useAuth();
+  const isSuperAdminOrAdmin = isAuthenticated && (hasRole('SUPERADMIN') || hasRole('ADMIN'));
   const canCreateStudent = !isAuthenticated || hasRole('SUPERADMIN');
 
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -143,6 +144,15 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
           </div>
         )}
 
+        {isSuperAdminOrAdmin && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>
+              <strong>Atenção Gestor:</strong> SuperAdmin e Admin possuem perfil exclusivo de gestão e avaliação de relatórios, não realizando testes diretamente com as crianças. A aplicação de testes é realizada pelos Supervisores.
+            </span>
+          </div>
+        )}
+
         {!isAdding ? (
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
@@ -176,10 +186,16 @@ export const StudentSelectionModal: React.FC<StudentSelectionModalProps> = ({
                     <div
                       key={st.id}
                       onClick={() => {
+                        if (isSuperAdminOrAdmin) {
+                          alert('SuperAdmins e Administradores possuem perfil exclusivo de gestão e avaliação de relatórios, não realizando testes diretamente com as crianças.');
+                          return;
+                        }
                         onSelectStudent(st);
                         onClose();
                       }}
-                      className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
+                      className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                        isSuperAdminOrAdmin ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                      } ${
                         isSelected
                           ? 'border-indigo-600 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-600/30'
                           : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'

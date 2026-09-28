@@ -4,6 +4,7 @@ import {
   compareTextReading,
   compileLettersMetrics,
   compileWordsMetrics,
+  compilePseudowordsMetrics,
   classifyPedagogicalDiagnosis,
   generateClassificationEvidences,
   generateExecutiveSummary,
@@ -18,17 +19,29 @@ import { ChildProfile } from '../types/child';
 import { RecognitionStatus } from '../types/speech';
 import {
   AdaptiveEvaluationStage,
+  ComprehensionAnswerResult,
+  ComprehensionQuestionItem,
+  ComprehensionReportMetrics,
   DifficultyLevel,
   EvaluationItemResult,
   EvaluationMode,
   EvaluationSession,
   LevelScore,
   PhrasesReportMetrics,
-  TextReportMetrics
+  TextReportMetrics,
+  WordsReportMetrics
 } from '../types/evaluation';
 import { QuestionItem } from '../types/question';
 import { AppSettings } from '../types/settings';
-import { LETTER_BANK, TEXT_BANK, PHRASE_BANK, QUESTION_BANK } from '../data/questionBank';
+import {
+  TEXT_BANK,
+  PHRASE_BANK,
+  QUESTION_BANK,
+  selectRandomLetters,
+  selectPseudowords,
+  getComprehensionQuestionsForText
+} from '../data/questionBank';
+import { ItemStateMachine, TimingMetrics } from '../services/evaluationStateMachine';
 
 export type EvaluationPhase = 'idle' | 'preparing' | 'testing' | 'completed';
 
@@ -64,6 +77,7 @@ export function useEvaluationEngine({
   const [evaluatedItems, setEvaluatedItems] = useState<EvaluationItemResult[]>([]);
   const [isSuccessFeedback, setIsSuccessFeedback] = useState<boolean>(false);
   const [isAnalyzingAi, setIsAnalyzingAi] = useState<boolean>(false);
+  const [comprehensionQuestions, setComprehensionQuestions] = useState<ComprehensionQuestionItem[]>([]);
 
   // Sincronização de estado para callbacks e eventos assíncronos
   const currentStageRef = useRef<AdaptiveEvaluationStage>('letters');
@@ -83,37 +97,51 @@ export function useEvaluationEngine({
   const intentionalSpeechDetectedRef = useRef<boolean>(false);
   const lastSpeechTimestampRef = useRef<number>(0);
 
+  // Instância ativa da máquina de estados do protocolo de fluência
+  const itemStateMachineRef = useRef<ItemStateMachine | null>(null);
+
+  // Armazenamento da sequência sorteada das 10 letras para auditabilidade
+  const letterSequenceRef = useRef<string[]>([]);
+  const lastReadTextTitleRef = useRef<string>('História');
+
   // Cache para relatórios das etapas concluídas
+  const pseudowordsReportRef = useRef<WordsReportMetrics | undefined>(undefined);
   const textReportRef = useRef<TextReportMetrics | undefined>(undefined);
+  const comprehensionReportRef = useRef<ComprehensionReportMetrics | undefined>(undefined);
   const phrasesReportRef = useRef<PhrasesReportMetrics | undefined>(undefined);
 
   /**
-   * Limites de tempo rígidos (Regras 3 e 4):
+   * Limites de tempo rígidos (Regras 3, 4 e Protocolo):
    * - Global: 240 segundos (4 minutos)
    * - Letras: 10 segundos
    * - Palavras: 10 segundos
+   * - Pseudopalavras: 10 segundos
    * - Frases: 15 segundos
    * - Texto: 60 segundos
    */
   const getItemDurationSec = (item: QuestionItem): number => {
     if (item.type === 'letter') return settings.durationLetterSec ?? 10;
     if (item.type === 'word') return settings.durationWordSec ?? 10;
+    if (item.type === 'pseudoword') return settings.durationWordSec ?? 10;
     if (item.type === 'phrase') return settings.durationPhraseSec ?? 15;
     if (item.type === 'text') return settings.durationTextSec ?? 60;
     return 10;
   };
 
   /**
-   * Prepara os itens da etapa de acordo com as regras de progressão adaptativa
+   * Prepara os itens da etapa de acordo com as regras de progressão do protocolo FluencIA
    */
   const prepareStageItems = (stage: AdaptiveEvaluationStage): QuestionItem[] => {
     switch (stage) {
-      case 'letters':
-        // Etapa 1: 15 letras com distribuição de vogais e consoantes canônicas
-        return LETTER_BANK.slice(0, 15);
+      case 'letters': {
+        // Seção 3.1: Exatamente 10 letras isoladas, selecionadas e embaralhadas aleatoriamente
+        const selectedLetters = selectRandomLetters(10);
+        letterSequenceRef.current = selectedLetters.map(l => l.text);
+        return selectedLetters;
+      }
 
       case 'words': {
-        // Etapa 2: Palavras progressivas (começando simples e aumentando complexidade)
+        // Etapa de Palavras reais canônicas, médias e complexas
         const simple = QUESTION_BANK.filter(q => q.level === 1).slice(0, 8);
         const medium = QUESTION_BANK.filter(q => q.level === 2).slice(0, 8);
         const complex = QUESTION_BANK.filter(q => q.level === 3).slice(0, 4);
@@ -121,12 +149,20 @@ export function useEvaluationEngine({
         return combined.length > 0 ? combined : initialItems.filter(i => i.type === 'word');
       }
 
-      case 'text':
-        // Etapa 3: Texto narrativo em contexto para 1º/2º ano
-        return [TEXT_BANK[0]];
+      case 'pseudowords': {
+        // Seção 6: Teste de decodificação grafema-fonema com 10 pseudopalavras
+        return selectPseudowords(10);
+      }
+
+      case 'text': {
+        // Seção 7: Texto narrativo em contexto
+        const textItem = TEXT_BANK[0];
+        lastReadTextTitleRef.current = textItem.category || 'História Infantil';
+        return [textItem];
+      }
 
       case 'phrases':
-        // Etapa 4: 3 frases progressivas (apenas para leitor fluente confirmado)
+        // Etapa suplementar para confirmação de Leitor Fluente
         return PHRASE_BANK.slice(0, 3);
 
       default:
@@ -137,8 +173,12 @@ export function useEvaluationEngine({
   const startEvaluation = () => {
     setEvaluatedItems([]);
     evaluatedItemsRef.current = [];
+    pseudowordsReportRef.current = undefined;
     textReportRef.current = undefined;
+    comprehensionReportRef.current = undefined;
     phrasesReportRef.current = undefined;
+    setComprehensionQuestions([]);
+    letterSequenceRef.current = [];
     isGlobalTimeLimitReachedRef.current = false;
     currentIndexRef.current = 0;
     setCurrentIndex(0);
@@ -146,7 +186,7 @@ export function useEvaluationEngine({
     setIsSuccessFeedback(false);
     setGlobalElapsedSeconds(0);
 
-    // No modo completo ou adaptativo, começa obrigatoriamente na Etapa 1 (Letras)
+    // No modo completo ou adaptativo, começa obrigatoriamente na Etapa 1 (10 Letras)
     const initialStage: AdaptiveEvaluationStage =
       mode === 'complete' || mode === 'adaptive' ? 'letters' : 'words';
 
@@ -161,7 +201,7 @@ export function useEvaluationEngine({
     audioService.setEnabled(settings.soundEnabled);
 
     // Pré-aquecimento do microfone e gravação por item
-    audioService.ensureMicStream().catch(() => {});
+    audioService.ensureMicStream().catch((e) => console.warn('Aviso microfone:', e));
     speechService.startSession(
       (listening) => setIsMicListening(listening),
       (err) => console.warn('Aviso do microfone na sessão:', err)
@@ -171,7 +211,7 @@ export function useEvaluationEngine({
     let count = 3;
     audioService.playCountdownBeep(0);
 
-    const prepInterval = window.setInterval(() => {
+    const prepInterval = window.setInterval(async () => {
       count--;
       if (count > 0) {
         setPreparationCount(count);
@@ -181,8 +221,9 @@ export function useEvaluationEngine({
         audioService.playStartChime();
         setPhase('testing');
         startGlobalTimer();
-        window.setTimeout(() => {
-          startItem(0, firstStageItems);
+        await audioService.ensureMicStream().catch(() => {});
+        window.setTimeout(async () => {
+          await startItem(0, firstStageItems);
         }, 350);
       }
     }, 1000);
@@ -275,7 +316,7 @@ export function useEvaluationEngine({
     }
   };
 
-  const startItem = (index: number, currentList: QuestionItem[]) => {
+  const startItem = async (index: number, currentList: QuestionItem[]) => {
     if (isGlobalTimeLimitReachedRef.current) return;
 
     if (index >= currentList.length) {
@@ -286,6 +327,10 @@ export function useEvaluationEngine({
     if (postSpeechTimeoutRef.current) {
       clearTimeout(postSpeechTimeoutRef.current);
       postSpeechTimeoutRef.current = null;
+    }
+    if (itemStateMachineRef.current) {
+      itemStateMachineRef.current.destroy();
+      itemStateMachineRef.current = null;
     }
 
     const item = currentList[index];
@@ -304,64 +349,88 @@ export function useEvaluationEngine({
     itemStartTimestampRef.current = startTime;
     const durationMs = duration * 1000;
 
-    // Inicia a gravação com MediaRecorder para captura de áudio da emissão da criança
+    // Assegura disponibilidade do hardware de áudio ativo antes de iniciar a gravação do item
+    await audioService.ensureMicStream().catch(() => {});
+
+    // Inicia a gravação de áudio com MediaRecorder
     audioService.startItemRecording();
 
-    // Configura o item de escuta
+    // Configura o reconhecimento de fala
     speechService.prepareNextItem({
       expectedText: item.text,
       availableTimeMs: durationMs,
       continuous: item.type === 'text'
     });
 
-    let consecutiveSpeechFrames = 0;
     intentionalSpeechDetectedRef.current = false;
     lastSpeechTimestampRef.current = 0;
 
-    audioService.startMicMonitoring((vol) => {
-      const now = Date.now();
-      const elapsedMs = now - startTime;
-
-      // Ignora os primeiros 300ms para evitar captura de cliques ou ruídos de transição
-      if (elapsedMs < 300) return;
-
-      if (vol >= 8) {
-        consecutiveSpeechFrames++;
-        if (consecutiveSpeechFrames >= 2) {
+    // Instancia a Máquina de Estados de Temporização Rigorosa do Protocolo FluencIA
+    const sm = new ItemStateMachine(
+      {
+        onSpeechDetected: (timestampMs) => {
           intentionalSpeechDetectedRef.current = true;
-          lastSpeechTimestampRef.current = now;
-          setLiveTranscript(item.type === 'text' ? 'Gravando leitura da historinha...' : 'Gravando voz da criança...');
-          if (postSpeechTimeoutRef.current) {
-            clearTimeout(postSpeechTimeoutRef.current);
-            postSpeechTimeoutRef.current = null;
-          }
-        }
-      } else {
-        consecutiveSpeechFrames = 0;
-        // Espera 3.0 segundos de silêncio para garantir que a criança não fez apenas uma pausa (válido para letras, palavras e historinha)
-        if (
-          intentionalSpeechDetectedRef.current &&
-          !isTransitioningRef.current &&
-          settings.autoAdvance &&
-          elapsedMs >= 2000 &&
-          now - lastSpeechTimestampRef.current >= 3000
-        ) {
+          lastSpeechTimestampRef.current = timestampMs;
+          setLiveTranscript(
+            item.type === 'text'
+              ? 'Gravando leitura da historinha...'
+              : 'Gravando voz da criança...'
+          );
+        },
+        onOmission: async (metrics) => {
+          if (isTransitioningRef.current) return;
           isTransitioningRef.current = true;
           audioService.stopMicMonitoring();
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
           }
-          if (postSpeechTimeoutRef.current) {
-            clearTimeout(postSpeechTimeoutRef.current);
-            postSpeechTimeoutRef.current = null;
+          await completeCurrentItem(
+            index,
+            item,
+            metrics.grossRecordingTimeMs,
+            undefined,
+            undefined,
+            false,
+            metrics.silenceDurationMs,
+            metrics,
+            'OMISSAO'
+          );
+        },
+        onRequestAiAnalysis: async (metrics) => {
+          if (isTransitioningRef.current) return;
+          isTransitioningRef.current = true;
+          audioService.stopMicMonitoring();
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
           }
-
-          const rawElapsed = Date.now() - startTime;
-          const silenceDuration = 3000; // Exatamente 3.0s de silêncio aguardado
-          completeCurrentItem(index, item, rawElapsed, undefined, undefined, false, silenceDuration);
+          await completeCurrentItem(
+            index,
+            item,
+            metrics.grossRecordingTimeMs,
+            undefined,
+            undefined,
+            metrics.isTimeLimitReached,
+            metrics.silenceDurationMs,
+            metrics
+          );
         }
+      },
+      {
+        initialSilenceWindowMs: 5000,
+        postSpeechSilenceWindowMs: 2000,
+        maxPostSpeechDurationMs: 5000,
+        textSilenceWindowMs: 4000,
+        maxTextDurationMs: (settings.durationTextSec ?? 60) * 1000
       }
+    );
+    itemStateMachineRef.current = sm;
+    sm.startItem(item);
+
+    // Conecta o monitor acústico (VAD) à máquina de estados
+    audioService.startMicMonitoring((vol) => {
+      itemStateMachineRef.current?.processAudioVolume(vol);
     });
 
     if (timerIntervalRef.current) {
@@ -373,24 +442,26 @@ export function useEvaluationEngine({
       const remaining = Math.max(0, (durationMs - elapsed) / 1000);
       setTimeRemainingSec(remaining);
 
-      // Limite máximo atingido do item (10s para letras/palavras, 60s para texto)
+      // Limite máximo do item atingido
       if (remaining <= 0) {
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
           timerIntervalRef.current = null;
         }
-        if (postSpeechTimeoutRef.current) {
-          clearTimeout(postSpeechTimeoutRef.current);
-          postSpeechTimeoutRef.current = null;
-        }
         if (!isTransitioningRef.current) {
           isTransitioningRef.current = true;
           audioService.stopMicMonitoring();
-          const rawElapsed = durationMs;
-          const silenceDuration = (intentionalSpeechDetectedRef.current && lastSpeechTimestampRef.current > 0)
-            ? Math.min(3000, Math.max(0, (startTime + durationMs) - lastSpeechTimestampRef.current))
-            : 0;
-          await completeCurrentItem(index, item, rawElapsed, undefined, undefined, true, silenceDuration);
+          const metrics = itemStateMachineRef.current?.forceComplete();
+          await completeCurrentItem(
+            index,
+            item,
+            durationMs,
+            undefined,
+            undefined,
+            true,
+            metrics?.silenceDurationMs || 0,
+            metrics
+          );
         }
       }
     }, 100);
@@ -403,13 +474,20 @@ export function useEvaluationEngine({
     explicitTranscript?: string,
     explicitConfidence?: number,
     isTimeLimitReached: boolean = false,
-    silenceWaitMs: number = 0
+    silenceWaitMs: number = 0,
+    timingMetrics?: TimingMetrics,
+    forcedStatus?: RecognitionStatus
   ) => {
-    // 1. Pausa o cronômetro decorrido global imediatamente quando o áudio é enviado para a IA
+    // 1. Pausa o cronômetro decorrido global imediatamente
     pauseGlobalTimer();
     setIsAnalyzingAi(true);
 
-    // 2. Finaliza a gravação do áudio do item atual com MediaRecorder
+    if (itemStateMachineRef.current) {
+      itemStateMachineRef.current.destroy();
+      itemStateMachineRef.current = null;
+    }
+
+    // 2. Finaliza a gravação do áudio do item atual
     let audioBlob: Blob | null = null;
     try {
       audioBlob = await audioService.stopItemRecording();
@@ -421,26 +499,30 @@ export function useEvaluationEngine({
     // 3. Coleta métricas da Web Speech API (fallback / medição de latência)
     const captured = speechService.consumeItemResult();
 
-    const localTranscript = explicitTranscript !== undefined ? explicitTranscript : captured.transcript;
+    const isOmission = forcedStatus === 'OMISSAO' || (timingMetrics?.isOmission ?? false);
+    const localTranscript = isOmission
+      ? ''
+      : (explicitTranscript !== undefined ? explicitTranscript : captured.transcript);
     const localConfidence = explicitConfidence !== undefined ? explicitConfidence : captured.confidence;
 
-    // Desconta o tempo de silêncio (3s) aguardado após a fala para correção precisa de PPM
-    const rawResponseTimeMs = captured.responseTimeMs || plannedDurationMs;
-    const responseTimeMs = Math.max(200, rawResponseTimeMs - silenceWaitMs);
+    // Desconta o tempo de silêncio (2s/4s) do tempo de resposta efetivo
+    const rawResponseTimeMs = timingMetrics?.grossRecordingTimeMs || captured.responseTimeMs || plannedDurationMs;
+    const effectiveReadingTimeMs = timingMetrics
+      ? timingMetrics.effectiveReadingTimeMs
+      : Math.max(isOmission ? 0 : 200, rawResponseTimeMs - silenceWaitMs);
+    const responseTimeMs = effectiveReadingTimeMs;
 
-    // Métricas temporais rigorosas (Regra 5)
-    const presentationTimeMs = itemStartTimestampRef.current;
-    const speechStartMs = captured.speechStartMs;
-    const speechEndMs = captured.speechEndMs
-      ? Math.min(captured.speechEndMs, presentationTimeMs + responseTimeMs)
-      : (presentationTimeMs + responseTimeMs);
-    const reactionTimeMs = speechStartMs ? Math.max(0, speechStartMs - presentationTimeMs) : responseTimeMs;
-    const speechDurationMs = speechStartMs ? Math.max(0, speechEndMs - speechStartMs) : responseTimeMs;
+    // Métricas temporais rigorosas (Regra 5 e Seção 4)
+    const presentationTimeMs = timingMetrics?.presentationTimestamp || itemStartTimestampRef.current;
+    const speechStartMs = timingMetrics?.speechStartTimestamp || captured.speechStartMs;
+    const speechEndMs = timingMetrics?.lastSpeechTimestamp || (speechStartMs ? speechStartMs + effectiveReadingTimeMs : undefined);
+    const reactionTimeMs = timingMetrics?.reactionTimeMs ?? (speechStartMs ? Math.max(0, speechStartMs - presentationTimeMs) : responseTimeMs);
+    const speechDurationMs = timingMetrics?.speechDetectedTimeMs ?? (speechStartMs && speechEndMs ? Math.max(0, speechEndMs - speechStartMs) : responseTimeMs);
     const totalTimeMs = reactionTimeMs + speechDurationMs;
 
-    // 3. Pipeline de IA Fonética (Groq Whisper Large v3 + Google Gemini 3.8 Flash)
+    // 4. Pipeline de IA Fonética (Groq Whisper Large v3 + Google Gemini 3.8 Flash)
     let finalTranscript = localTranscript;
-    let finalStatus: RecognitionStatus | null = null;
+    let finalStatus: RecognitionStatus | null = forcedStatus || (isOmission ? 'OMISSAO' : null);
     let similarity: number | undefined = undefined;
     let observedError: string | undefined = undefined;
     let phonemeFindings: string[] = [];
@@ -448,6 +530,7 @@ export function useEvaluationEngine({
     let provider = captured.provider;
     let isAiAnalyzed = false;
 
+    // Envia ao pipeline de IA fonética (Groq Whisper + Gemini) sempre que houver áudio gravado
     if (audioBlob && audioBlob.size > 100) {
       try {
         const formData = new FormData();
@@ -471,13 +554,15 @@ export function useEvaluationEngine({
       } catch (aiErr) {
         console.warn('[FluencIA] API de IA offline ou inatingível. Aplicando contingência com análise fonética local:', aiErr);
       }
+    } else {
+      console.warn(`[FluencIA] Item #${itemIndex + 1} (${item.text}): Sem áudio capturado (${audioBlob?.size ?? 0} bytes) para envio à IA.`);
     }
 
-    // 4. Avaliação pedagógica estruturada do item
+    // 5. Avaliação pedagógica estruturada do item
     let itemResult: EvaluationItemResult;
 
     if (item.type === 'text') {
-      const textAnalysis = compareTextReading(item.text, finalTranscript, responseTimeMs / 1000);
+      const textAnalysis = compareTextReading(item.text, finalTranscript, Math.max(1, responseTimeMs / 1000));
       textReportRef.current = {
         evaluated: true,
         textTitle: item.category || 'História Infantil',
@@ -517,10 +602,16 @@ export function useEvaluationEngine({
         speechDurationMs,
         totalTimeMs,
         responseTimeMs,
+        grossRecordingTimeMs: timingMetrics?.grossRecordingTimeMs || rawResponseTimeMs,
+        speechDetectedTimeMs: timingMetrics?.speechDetectedTimeMs || speechDurationMs,
+        silenceTimeMs: timingMetrics?.silenceDurationMs || silenceWaitMs,
+        effectiveReadingTimeMs,
         availableTimeMs: 60000,
         confidence: isAiAnalyzed ? (similarity ?? 1.0) : localConfidence,
         confidenceNote: (!isAiAnalyzed && localConfidence < 0.65) ? 'Indeterminada — baixa confiança' : undefined,
         isTimeLimitReached,
+        isOmission,
+        omissionReason: timingMetrics?.omissionReason,
         observedError: observedError || (textAnalysis.accuracy < 85 ? `Precisão textual de ${textAnalysis.accuracy}%` : undefined),
         phonemeFindings,
         pedagogicalNote,
@@ -532,11 +623,15 @@ export function useEvaluationEngine({
       let comparisonPhonemeFindings: string[] = [];
       let comparisonObservedError: string | undefined = undefined;
 
-      if (isAiAnalyzed && finalStatus) {
+      if (isOmission) {
+        resolvedStatus = 'OMISSAO';
+        displayTranscript = '(omissão)';
+        comparisonObservedError = timingMetrics?.omissionReason || 'Nenhuma fala na janela inicial de 3s';
+      } else if (isAiAnalyzed && finalStatus) {
         resolvedStatus = finalStatus;
         if (resolvedStatus === 'CORRETO' && item.type === 'letter') {
           displayTranscript = item.text;
-        } else if (resolvedStatus === 'CORRETO' && item.type === 'word') {
+        } else if (resolvedStatus === 'CORRETO' && (item.type === 'word' || item.type === 'pseudoword')) {
           displayTranscript = item.text.toLowerCase();
         }
       } else {
@@ -544,7 +639,7 @@ export function useEvaluationEngine({
           phoneticSupportEnabled: settings.phoneticSupportEnabled,
           speechTolerance: settings.speechTolerance
         });
-        if (comparison.status === 'CORRETO' && item.type === 'word') {
+        if (comparison.status === 'CORRETO' && (item.type === 'word' || item.type === 'pseudoword')) {
           displayTranscript = item.text.toLowerCase();
         } else if (comparison.status === 'CORRETO' && item.type === 'letter') {
           displayTranscript = item.text;
@@ -574,6 +669,10 @@ export function useEvaluationEngine({
         speechDurationMs,
         totalTimeMs,
         responseTimeMs,
+        grossRecordingTimeMs: timingMetrics?.grossRecordingTimeMs || rawResponseTimeMs,
+        speechDetectedTimeMs: timingMetrics?.speechDetectedTimeMs || speechDurationMs,
+        silenceTimeMs: timingMetrics?.silenceDurationMs || silenceWaitMs,
+        effectiveReadingTimeMs,
         availableTimeMs: item.type === 'phrase' ? 15000 : 10000,
         confidence: isAiAnalyzed ? (similarity ?? 1.0) : localConfidence,
         confidenceNote: (!isAiAnalyzed && localConfidence < 0.65) ? 'Indeterminada — baixa confiança' : undefined,
@@ -584,6 +683,8 @@ export function useEvaluationEngine({
         observedError: observedError || comparisonObservedError,
         pedagogicalNote,
         isTimeLimitReached,
+        isOmission,
+        omissionReason: timingMetrics?.omissionReason,
         silabationDetected: reactionTimeMs > 4000 || responseTimeMs > 6000,
         pausesCount: reactionTimeMs > 2500 ? 1 : 0
       };
@@ -598,7 +699,7 @@ export function useEvaluationEngine({
 
     setIsAnalyzingAi(false);
 
-    // Retoma o cronômetro decorrido global descontando o tempo sem som (3s) e o tempo de IA
+    // Retoma o cronômetro decorrido global descontando o silêncio pós-fala e o tempo de IA
     resumeGlobalTimer(silenceWaitMs);
 
     if (!settings.silentModeDuringSpeech && settings.soundEnabled) {
@@ -609,7 +710,7 @@ export function useEvaluationEngine({
     currentIndexRef.current = nextIndex;
     setCurrentIndex(nextIndex);
 
-    await new Promise((r) => setTimeout(r, 450));
+    await new Promise((r) => setTimeout(r, 150));
 
     if (nextIndex < stageItemsRef.current.length) {
       startItem(nextIndex, stageItemsRef.current);
@@ -619,7 +720,7 @@ export function useEvaluationEngine({
   };
 
   /**
-   * Lógica Central da Avaliação Adaptativa (Regras 1, 2, 6, 7, 9, 10, 11, 12 e 26)
+   * Lógica Central da Avaliação Adaptativa (Seção 3, 6, 7, 10 e 11 do Protocolo FluencIA)
    */
   const handleStageCompletion = (completedStage: AdaptiveEvaluationStage) => {
     if (isGlobalTimeLimitReachedRef.current) {
@@ -629,17 +730,21 @@ export function useEvaluationEngine({
 
     const allEvaluated = evaluatedItemsRef.current;
 
-    // Conclusão da Etapa 1: Reconhecimento de Letras
+    // Conclusão da Etapa 1: Reconhecimento de 10 Letras Isoladas
     if (completedStage === 'letters') {
       const lettersMetrics = compileLettersMetrics(allEvaluated);
 
-      // Regra 1: Se a criança não conseguiu identificar letras de maneira suficiente (< 10 acertos) -> PRÉ-LEITOR 1
-      if (lettersMetrics.correct < 10) {
+      // Critério mínimo para avançar para as Palavras (padrão: pelo menos 7 letras corretas)
+      const minLettersRequired = settings.minLettersForWords ?? 7;
+      if (lettersMetrics.correct < minLettersRequired) {
+        console.log(
+          `[FluencIA Adaptativo] Critério de progressão não atingido em Letras: ${lettersMetrics.correct}/${lettersMetrics.presented} corretas (mínimo exigido: ${minLettersRequired}). Finalizando avaliação.`
+        );
         finishEvaluation(false);
         return;
       }
 
-      // Regra 1 & 6: Identificou 10 ou mais letras corretamente -> Avança para Palavras Isoladas
+      // Avança para Palavras Reais
       currentStageRef.current = 'words';
       setCurrentStage('words');
       const nextWords = prepareStageItems('words');
@@ -655,67 +760,105 @@ export function useEvaluationEngine({
     if (completedStage === 'words') {
       const wordsMetrics = compileWordsMetrics(allEvaluated);
 
-      // Regra 1: Pré-Leitor 2 (>= 10 letras, mas 0 palavras corretas)
-      if (wordsMetrics.correct === 0) {
+      // Critério mínimo para avançar para Pseudopalavras (padrão: pelo menos 60% de acerto nas palavras)
+      const minWordsPercentRequired = settings.minWordsPercentageForPseudo ?? 60;
+      if (wordsMetrics.accuracy < minWordsPercentRequired) {
+        console.log(
+          `[FluencIA Adaptativo] Critério de progressão não atingido em Palavras: precisão de ${wordsMetrics.accuracy}% (${wordsMetrics.correct}/${wordsMetrics.presented}) abaixo do mínimo de ${minWordsPercentRequired}%. Finalizando avaliação.`
+        );
         finishEvaluation(false);
         return;
       }
 
-      // Regra 1 & 9: Pré-Leitor 3 (1 a 10 palavras corretas) -> Encerra progressão
-      if (wordsMetrics.correct <= 10) {
-        finishEvaluation(false);
-        return;
-      }
-
-      // Regra 1 & 9: Leitor Iniciante 1 (11 a 20 palavras corretas em 60s) -> Encerra progressão
-      if (wordsMetrics.wordsPerMinute >= 11 && wordsMetrics.wordsPerMinute <= 20) {
-        finishEvaluation(false);
-        return;
-      }
-
-      // Regra 9: 21 ou mais palavras corretas por minuto -> Candidato a Leitor Iniciante 2
-      // Encaminha a criança para a avaliação textual para verificar se apresenta fluência em contexto
-      if (wordsMetrics.wordsPerMinute >= 21 || wordsMetrics.correct >= 11) {
-        currentStageRef.current = 'text';
-        setCurrentStage('text');
-        const textItems = prepareStageItems('text');
-        stageItemsRef.current = textItems;
-        setStageItems(textItems);
-        setCurrentIndex(0);
-        currentIndexRef.current = 0;
-        startItem(0, textItems);
-        return;
-      }
-
-      finishEvaluation(false);
+      // Avança para a Etapa de Pseudopalavras (decodificação grafema-fonema)
+      currentStageRef.current = 'pseudowords';
+      setCurrentStage('pseudowords');
+      const pseudoItems = prepareStageItems('pseudowords');
+      stageItemsRef.current = pseudoItems;
+      setStageItems(pseudoItems);
+      setCurrentIndex(0);
+      currentIndexRef.current = 0;
+      startItem(0, pseudoItems);
       return;
     }
 
-    // Conclusão da Etapa 3: Leitura de Texto em Contexto
+    // Conclusão da Etapa de Pseudopalavras
+    if (completedStage === 'pseudowords') {
+      const pseudoMetrics = compilePseudowordsMetrics(allEvaluated);
+      pseudowordsReportRef.current = pseudoMetrics;
+
+      // Critério mínimo para avançar para Leitura de Texto (padrão: pelo menos 50% de acerto nas pseudopalavras)
+      const minPseudoPercentRequired = settings.minPseudoPercentageForText ?? 50;
+      if (pseudoMetrics.accuracy < minPseudoPercentRequired) {
+        console.log(
+          `[FluencIA Adaptativo] Critério de progressão não atingido em Pseudopalavras: precisão de ${pseudoMetrics.accuracy}% (${pseudoMetrics.correct}/${pseudoMetrics.presented}) abaixo do mínimo de ${minPseudoPercentRequired}%. Finalizando avaliação.`
+        );
+        finishEvaluation(false);
+        return;
+      }
+
+      // Avança para Leitura de Texto em Contexto
+      currentStageRef.current = 'text';
+      setCurrentStage('text');
+      const textItems = prepareStageItems('text');
+      stageItemsRef.current = textItems;
+      setStageItems(textItems);
+      setCurrentIndex(0);
+      currentIndexRef.current = 0;
+      startItem(0, textItems);
+      return;
+    }
+
+    // Conclusão da Leitura de Texto
     if (completedStage === 'text') {
       const textReport = textReportRef.current;
 
-      // Regra 2 & 11: Se atingir simultaneamente >= 65 PCPM + > 90% precisão + automaticidade -> LEITOR FLUENTE
-      if (textReport && textReport.isFluentEligible) {
-        // Regra 2 & 12: As frases SOMENTE devem ser apresentadas caso o sistema detecte LEITOR FLUENTE
-        currentStageRef.current = 'phrases';
-        setCurrentStage('phrases');
-        const phraseItems = prepareStageItems('phrases');
-        stageItemsRef.current = phraseItems;
-        setStageItems(phraseItems);
-        setCurrentIndex(0);
-        currentIndexRef.current = 0;
-        startItem(0, phraseItems);
+      // Verificação dos critérios de avanço para a etapa de Compreensão Textual (Seção 10)
+      // A criança deve ter demonstrado contato real com o texto (leitura de palavras e acertos mínimos)
+      const isEligibleForComprehension = Boolean(
+        textReport &&
+        textReport.wordsRead >= 3 &&
+        textReport.wordsCorrect >= 2
+      );
+
+      if (isEligibleForComprehension) {
+        // Exatamente 3 perguntas associadas ao texto
+        const currentTextItem = stageItemsRef.current[0];
+        const questions = getComprehensionQuestionsForText(currentTextItem?.id);
+        setComprehensionQuestions(questions);
+        currentStageRef.current = 'comprehension';
+        setCurrentStage('comprehension');
+        return;
+      } else {
+        // Etapa de compreensão não realizada por critério de progressão
+        comprehensionReportRef.current = {
+          evaluated: false,
+          eligible: false,
+          ineligibilityReason: 'Critério de progressão não atingido: decodificação insuficiente do texto para aferição de compreensão oral.',
+          totalQuestions: 3,
+          correctCount: 0,
+          scorePercentage: 0,
+          answers: []
+        };
+
+        if (textReport && textReport.isFluentEligible) {
+          currentStageRef.current = 'phrases';
+          setCurrentStage('phrases');
+          const phraseItems = prepareStageItems('phrases');
+          stageItemsRef.current = phraseItems;
+          setStageItems(phraseItems);
+          setCurrentIndex(0);
+          currentIndexRef.current = 0;
+          startItem(0, phraseItems);
+          return;
+        }
+
+        finishEvaluation(false);
         return;
       }
-
-      // Regra 11: Se atingir 21+ palavras/minuto, mas não atingir os critérios de texto, manter LEITOR INICIANTE 2
-      // NÃO apresentar frases para Leitor Iniciante 2!
-      finishEvaluation(false);
-      return;
     }
 
-    // Conclusão da Etapa 4: Frases Curtas (Apenas Leitor Fluente)
+    // Conclusão da Etapa de Frases Curtas (Apenas Leitor Fluente)
     if (completedStage === 'phrases') {
       const phraseItems = allEvaluated.filter(i => i.type === 'phrase');
       const phraseCompleted = phraseItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
@@ -737,7 +880,40 @@ export function useEvaluationEngine({
   };
 
   /**
-   * Finalização da Avaliação com Geração do Relatório Pedagógico Completo (Regras 18 a 25)
+   * Submissão das 3 Respostas de Compreensão Textual avaliadas pelo Supervisor (Seção 10)
+   */
+  const submitComprehensionAnswers = (answers: ComprehensionAnswerResult[]) => {
+    const correctCount = answers.filter(a => a.status === 'CORRETO').length;
+    const scorePercentage = answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0;
+
+    comprehensionReportRef.current = {
+      evaluated: true,
+      eligible: true,
+      totalQuestions: answers.length,
+      correctCount,
+      scorePercentage,
+      answers
+    };
+
+    // Se o estudante atingir perfil de Leitor Fluente, prossegue para Frases para prosódia avançada
+    if (textReportRef.current && textReportRef.current.isFluentEligible) {
+      currentStageRef.current = 'phrases';
+      setCurrentStage('phrases');
+      const phraseItems = prepareStageItems('phrases');
+      stageItemsRef.current = phraseItems;
+      setStageItems(phraseItems);
+      setCurrentIndex(0);
+      currentIndexRef.current = 0;
+      startItem(0, phraseItems);
+      return;
+    }
+
+    // Conclui a avaliação
+    finishEvaluation(false);
+  };
+
+  /**
+   * Finalização da Avaliação com Geração do Relatório Pedagógico Completo (Regras 18 a 25 e Seção 9)
    */
   const finishEvaluation = async (isTimeLimitExceeded: boolean = false) => {
     if (timerIntervalRef.current) {
@@ -788,6 +964,7 @@ export function useEvaluationEngine({
             levelScores[lvl].incorrect += 1;
             break;
           case 'SEM_RESPOSTA':
+          case 'OMISSAO':
             noResponseCount++;
             levelScores[lvl].noResponse += 1;
             break;
@@ -810,41 +987,49 @@ export function useEvaluationEngine({
     const accuracyPercentage = totalItems > 0 ? Math.round((effectivePoints / totalItems) * 100) : 0;
     const averageResponseTimeMs = totalItems > 0 ? Math.round(totalTimeMs / totalItems) : 0;
 
-    // Métricas por etapa
+    // Métricas por etapa com segregação matemática estrita (Seção 3 e 9)
     const lettersReport = compileLettersMetrics(allItems);
     const wordsReport = compileWordsMetrics(allItems);
+    const pseudowordsReport = pseudowordsReportRef.current || compilePseudowordsMetrics(allItems);
     const textReport = textReportRef.current;
+    const comprehensionReport = comprehensionReportRef.current;
     const phrasesReport = phrasesReportRef.current;
 
     // Palavras Corretas Por Minuto no conjunto de palavras
     const wordsPerMinute = wordsReport.wordsPerMinute || 0;
 
-    // Classificação oficial em 6 níveis estritos
+    // Classificação oficial em 6 níveis pedagógicos
     const pedagogicalDiagnosis = classifyPedagogicalDiagnosis(
       lettersReport,
       wordsReport,
-      textReport
+      textReport,
+      pseudowordsReport,
+      comprehensionReport
     );
 
-    // Evidências detalhadas da classificação (Regra 19)
+    // Evidências detalhadas da classificação
     const classificationEvidences = generateClassificationEvidences(
       pedagogicalDiagnosis,
       lettersReport,
       wordsReport,
       textReport,
-      phrasesReport
+      phrasesReport,
+      pseudowordsReport,
+      comprehensionReport
     );
 
-    // Resumo Executivo para leitura rápida do Supervisor (Regra 20)
+    // Resumo Executivo para leitura rápida do Supervisor
     let executiveSummary = generateExecutiveSummary(
       pedagogicalDiagnosis,
       lettersReport,
       wordsReport,
       textReport,
-      phrasesReport
+      phrasesReport,
+      pseudowordsReport,
+      comprehensionReport
     );
 
-    // Recomendações pedagógicas orientadas por dados (Regra 21)
+    // Recomendações pedagógicas orientadas por dados
     let practiceRecommendations = generatePracticeRecommendations(allItems);
 
     let aiPedagogicalSynthesis: { executiveSummary: string; recommendations: string[]; strengths: string[] } | undefined = undefined;
@@ -884,7 +1069,7 @@ export function useEvaluationEngine({
       console.warn('[Gemini] Síntese automatizada offline, mantendo síntese estruturada padrão:', synthErr);
     }
 
-    // Identificação escolar segura
+    // Identificação escolar segura e construção da sessão
     const studentAsStudent = activeStudent as Student | undefined;
     const session: EvaluationSession = {
       id: `eval_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -915,8 +1100,11 @@ export function useEvaluationEngine({
       executiveSummary,
       lettersReport,
       wordsReport,
+      pseudowordsReport,
       textReport,
+      comprehensionReport,
       phrasesReport,
+      letterSequence: letterSequenceRef.current,
       items: allItems,
       levelScores,
       practiceRecommendations,
@@ -952,6 +1140,10 @@ export function useEvaluationEngine({
       clearTimeout(postSpeechTimeoutRef.current);
       postSpeechTimeoutRef.current = null;
     }
+    if (itemStateMachineRef.current) {
+      itemStateMachineRef.current.destroy();
+      itemStateMachineRef.current = null;
+    }
     audioService.stopItemRecording().catch(() => {});
     speechService.stopSession();
     audioService.releaseMic();
@@ -976,16 +1168,17 @@ export function useEvaluationEngine({
     const item = stageItemsRef.current[idx];
     if (!item) return;
 
+    const metrics = itemStateMachineRef.current?.forceComplete(status);
     const elapsed = Date.now() - itemStartTimestampRef.current;
 
     if (status === 'CORRETO') {
       setIsSuccessFeedback(true);
       setLiveTranscript(item.text.toLowerCase());
       window.setTimeout(async () => {
-        await completeCurrentItem(idx, item, elapsed, item.text.toLowerCase(), 1.0, false, 0);
+        await completeCurrentItem(idx, item, elapsed, item.text.toLowerCase(), 1.0, false, 0, metrics, 'CORRETO');
       }, 250);
     } else {
-      await completeCurrentItem(idx, item, elapsed, '(resposta incorreta)', 1.0, false, 0);
+      await completeCurrentItem(idx, item, elapsed, '(resposta incorreta)', 1.0, false, 0, metrics, 'INCORRETO');
     }
   };
 
@@ -993,8 +1186,7 @@ export function useEvaluationEngine({
     if (isTransitioningRef.current || isAnalyzingAi) return;
 
     const elapsed = Date.now() - itemStartTimestampRef.current;
-    // Previne avanço acidental prematuro se nenhuma fala intencional foi detectada
-    if (elapsed < 600 && !intentionalSpeechDetectedRef.current) {
+    if (elapsed < 400 && !intentionalSpeechDetectedRef.current) {
       return;
     }
 
@@ -1011,9 +1203,7 @@ export function useEvaluationEngine({
     const item = stageItemsRef.current[idx];
     if (item && !isTransitioningRef.current) {
       isTransitioningRef.current = true;
-      const silenceDuration = (intentionalSpeechDetectedRef.current && lastSpeechTimestampRef.current > 0)
-        ? Math.min(3000, Math.max(0, Date.now() - lastSpeechTimestampRef.current))
-        : 0;
+      const metrics = itemStateMachineRef.current?.forceComplete('OMISSAO');
       completeCurrentItem(
         idx,
         item,
@@ -1021,7 +1211,9 @@ export function useEvaluationEngine({
         undefined,
         undefined,
         false,
-        silenceDuration
+        metrics?.silenceDurationMs || 0,
+        metrics,
+        'OMISSAO'
       );
     }
   };
@@ -1036,6 +1228,9 @@ export function useEvaluationEngine({
       }
       if (postSpeechTimeoutRef.current) {
         clearTimeout(postSpeechTimeoutRef.current);
+      }
+      if (itemStateMachineRef.current) {
+        itemStateMachineRef.current.destroy();
       }
       audioService.stopItemRecording().catch(() => {});
       speechService.stopSession();
@@ -1059,6 +1254,9 @@ export function useEvaluationEngine({
     isSuccessFeedback,
     isAnalyzingAi,
     evaluatedItems,
+    comprehensionQuestions,
+    lastReadTextTitle: lastReadTextTitleRef.current,
+    submitComprehensionAnswers,
     startEvaluation,
     cancelEvaluation,
     skipCurrentItem,

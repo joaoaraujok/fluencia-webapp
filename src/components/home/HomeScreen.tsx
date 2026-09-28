@@ -8,8 +8,11 @@ import {
   BookOpen,
   ArrowRight,
   History,
-  Sparkles
+  Sparkles,
+  Shield,
+  BarChart3
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { DifficultyLevel } from '../../types/question';
 import { Student } from '../../types/school';
 import { ChildProfile } from '../../types/child';
@@ -22,6 +25,7 @@ interface HomeScreenProps {
   onOpenSettings?: () => void;
   onOpenStudentModal: () => void;
   onOpenManual?: () => void;
+  onOpenAdmin?: () => void;
   onInstallApp?: () => void;
 }
 
@@ -30,8 +34,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartCompleteEvaluation,
   onOpenHistory,
   onOpenStudentModal,
-  onOpenManual
+  onOpenManual,
+  onOpenAdmin
 }) => {
+  const { isAuthenticated, hasRole } = useAuth();
+  const isSuperAdmin = hasRole('SUPERADMIN');
+  const isAdmin = hasRole('ADMIN');
+  const isSuperAdminOrAdmin = isAuthenticated && (isSuperAdmin || isAdmin);
+
   const studentAsStudent = activeStudent as Student | undefined;
 
   return (
@@ -39,22 +49,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Seção Hero: Acolhedora, Profissional e com Foco Claro */}
       <div className="text-center max-w-2xl mx-auto space-y-6">
         {/* Identificação do Estudante Ativo */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-xs">
-          <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-bold text-[11px] shrink-0">
-            {activeStudent ? activeStudent.name.charAt(0).toUpperCase() : <UserCheck className="w-3 h-3 text-indigo-600" />}
+        {!isSuperAdminOrAdmin && (
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-xs">
+            <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-bold text-[11px] shrink-0">
+              {activeStudent ? activeStudent.name.charAt(0).toUpperCase() : <UserCheck className="w-3 h-3 text-indigo-600" />}
+            </div>
+            <span className="text-xs sm:text-sm font-semibold text-slate-800">
+              {activeStudent ? activeStudent.name : 'Nenhum estudante selecionado'}
+              {studentAsStudent?.class ? ` • ${studentAsStudent.class.name}` : ''}
+            </span>
+            <button
+              onClick={onOpenStudentModal}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors ml-1 px-2 py-0.5 rounded hover:bg-indigo-50"
+              aria-label="Trocar ou selecionar estudante"
+            >
+              {activeStudent ? 'Alterar' : 'Selecionar'}
+            </button>
           </div>
-          <span className="text-xs sm:text-sm font-semibold text-slate-800">
-            {activeStudent ? activeStudent.name : 'Nenhum estudante selecionado'}
-            {studentAsStudent?.class ? ` • ${studentAsStudent.class.name}` : ''}
-          </span>
-          <button
-            onClick={onOpenStudentModal}
-            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors ml-1 px-2 py-0.5 rounded hover:bg-indigo-50"
-            aria-label="Trocar ou selecionar estudante"
-          >
-            {activeStudent ? 'Alterar' : 'Selecionar'}
-          </button>
-        </div>
+        )}
 
         {/* Título Principal e Proposta de Valor */}
         <div className="space-y-3">
@@ -72,28 +84,63 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </p>
         </div>
 
-        {/* Botão de Ação Primária Unificado */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <button
-            onClick={onStartCompleteEvaluation}
-            className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-semibold shadow-md shadow-indigo-500/15 hover:shadow-indigo-500/25 cursor-pointer"
-            aria-label="Iniciar avaliação diagnóstica completa"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Iniciar Avaliação Diagnóstica</span>
-          </button>
-
-          {onOpenHistory && (
+        {/* Bloco de Ação: Se for SuperAdmin ou Admin, exibe card institucional; se for Supervisor ou Sem Login, botão de teste */}
+        {isSuperAdminOrAdmin ? (
+          <div className="card p-6 sm:p-7 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/70 border border-indigo-200/90 max-w-xl mx-auto space-y-3.5 shadow-sm text-center animate-fadeIn">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200">
+              <Shield className="w-3.5 h-3.5 text-indigo-700" />
+              <span>Acesso Institucional ({isSuperAdmin ? 'SuperAdmin' : 'Admin'})</span>
+            </div>
+            <h3 className="font-display font-black text-xl text-slate-900 leading-snug">
+              Painel de Gestão e Avaliação de Relatórios
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+              SuperAdmins e Administradores possuem atribuição exclusiva de gestão da rede, visualização e avaliação dos relatórios enviados pelos supervisores. A aplicação direta de testes com crianças é realizada pelos Supervisores.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+              {onOpenAdmin && (
+                <button
+                  onClick={onOpenAdmin}
+                  className="btn-primary w-full sm:w-auto px-6 py-3 text-sm font-bold shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Acessar Painel de Gestão</span>
+                </button>
+              )}
+              {onOpenHistory && (
+                <button
+                  onClick={onOpenHistory}
+                  className="btn-secondary w-full sm:w-auto px-4 py-3 text-xs font-semibold cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <History className="w-4 h-4 text-slate-500" />
+                  <span>Ver Histórico</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
-              onClick={onOpenHistory}
-              className="btn-secondary w-full sm:w-auto px-5 py-3.5 text-sm font-semibold cursor-pointer"
-              aria-label="Ver histórico de avaliações anteriores"
+              onClick={onStartCompleteEvaluation}
+              className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-semibold shadow-md shadow-indigo-500/15 hover:shadow-indigo-500/25 cursor-pointer"
+              aria-label="Iniciar avaliação diagnóstica completa"
             >
-              <History className="w-4 h-4 text-slate-500" />
-              <span>Ver Histórico</span>
+              <Play className="w-4 h-4 fill-current" />
+              <span>Iniciar Avaliação Diagnóstica</span>
             </button>
-          )}
-        </div>
+
+            {onOpenHistory && (
+              <button
+                onClick={onOpenHistory}
+                className="btn-secondary w-full sm:w-auto px-5 py-3.5 text-sm font-semibold cursor-pointer"
+                aria-label="Ver histórico de avaliações anteriores"
+              >
+                <History className="w-4 h-4 text-slate-500" />
+                <span>Ver Histórico</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Indicadores Pedagógicos Essenciais */}
         <div className="flex flex-wrap items-center justify-center gap-y-2 gap-x-5 text-xs text-slate-600 pt-2 border-t border-slate-200/80 max-w-lg mx-auto">

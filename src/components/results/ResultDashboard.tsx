@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   RotateCcw,
@@ -14,13 +14,18 @@ import {
   BookOpen,
   FileText,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  Pencil,
+  Save,
+  MessageSquare
 } from 'lucide-react';
 import { EvaluationSession } from '../../types/evaluation';
 import { DIAGNOSIS_DEFINITIONS } from '../../data/questionBank';
 import { PracticeReport } from './PracticeReport';
 import { DetailedItemList } from './DetailedItemList';
 import { FluenciaLogo } from '../common/FluenciaLogo';
+import { saveEvaluationSessionLocally } from '../../services/db';
+import { api } from '../../services/api';
 
 interface ResultDashboardProps {
   session: EvaluationSession;
@@ -35,6 +40,28 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
   onViewHistory,
   onInstallApp
 }) => {
+  const [supervisorNotes, setSupervisorNotes] = useState<string>(session.notes || '');
+  const [isEditingNotes, setIsEditingNotes] = useState<boolean>(false);
+  const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+  const [notesSaveSuccess, setNotesSaveSuccess] = useState<boolean>(false);
+
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true);
+    try {
+      session.notes = supervisorNotes.trim();
+      await saveEvaluationSessionLocally(session);
+      if (session.id && !session.id.startsWith('eval_')) {
+        await api.updateEvaluationNotes(session.id, supervisorNotes.trim()).catch(() => {});
+      }
+      setIsEditingNotes(false);
+      setNotesSaveSuccess(true);
+      setTimeout(() => setNotesSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Falha ao salvar observações do supervisor:', err);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
   useEffect(() => {
     try {
       confetti({
@@ -76,7 +103,9 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
   const exec = session.executiveSummary;
   const letters = session.lettersReport;
   const words = session.wordsReport;
+  const pseudowords = session.pseudowordsReport;
   const text = session.textReport;
+  const comprehension = session.comprehensionReport;
   const phrases = session.phrasesReport;
 
   return (
@@ -252,32 +281,160 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
         </div>
       </div>
 
-      {/* SÍNTESE PEDAGÓGICA ESTRUTURADA COM GOOGLE GEMINI */}
-      {session.aiPedagogicalSynthesis && (
-        <div className="card p-6 bg-slate-50/80 border border-indigo-200/70 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-            </span>
-            <h3 className="font-bold text-base text-slate-900">
-              Síntese Pedagógica Estruturada
-            </h3>
+      {/* CAIXA DE INFORMAÇÕES DA AVALIAÇÃO: RELATÓRIO DA IA E OBSERVAÇÕES DO SUPERVISOR */}
+      <div className="card p-6 sm:p-8 bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/40 border border-indigo-200/90 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-indigo-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-xs">
+              <Sparkles className="w-5 h-5 text-amber-200" />
+            </div>
+            <div>
+              <h3 className="font-display font-black text-xl text-slate-900 leading-tight">
+                Caixa de Informações da Avaliação
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Síntese diagnóstica gerada pela IA e anotações pedagógicas do supervisor
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-700 leading-relaxed font-normal">
-            {session.aiPedagogicalSynthesis.executiveSummary}
+          {session.adminReviewStatus && (
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider self-start sm:self-auto border ${
+                session.adminReviewStatus === 'APROVADO'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : session.adminReviewStatus === 'REQUER_ATENCAO'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : session.adminReviewStatus === 'EM_OBSERVACAO'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              Homologação Gestão: {session.adminReviewStatus}
+            </span>
+          )}
+        </div>
+
+        {/* 1. RELATÓRIO GERADO PELA IA */}
+        <div className="p-5 rounded-2xl bg-white border border-indigo-100/90 shadow-2xs space-y-3">
+          <div className="flex items-center gap-2 text-indigo-700">
+            <Sparkles className="w-4 h-4" />
+            <h4 className="font-display font-bold text-sm sm:text-base text-slate-900">
+              Relatório Diagnóstico Gerado pela IA
+            </h4>
+          </div>
+
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+            {session.aiPedagogicalSynthesis?.executiveSummary ||
+             exec?.readingQualitySummary ||
+             (session.accuracyPercentage >= 80
+               ? `A IA identificou alto índice de decodificação e fluência articulatória (${session.accuracyPercentage}% de precisão). O estudante demonstra segurança fonológica e cadência adequada aos itens apresentados.`
+               : session.accuracyPercentage >= 50
+               ? `A IA apurou desempenho intermediário (${session.accuracyPercentage}% de precisão). Observou-se prontidão em palavras canônicas e necessidade de apoio no reconhecimento de dígrafos e estruturas silábicas complexas.`
+               : `A IA diagnosticou padrão compatível com a fase inicial de alfabetização (Pré-Leitor, ${session.accuracyPercentage}% de precisão). Recomenda-se estímulo continuado de consciência fonológica e nomeação oral.`)}
           </p>
-          {session.aiPedagogicalSynthesis.strengths && session.aiPedagogicalSynthesis.strengths.length > 0 && (
-            <div className="pt-2 border-t border-slate-200/80 flex flex-wrap gap-2 text-xs items-center">
-              <span className="font-semibold text-slate-700">Potencialidades observadas:</span>
-              {session.aiPedagogicalSynthesis.strengths.map((str, i) => (
-                <span key={i} className="px-2.5 py-0.5 rounded-full bg-white text-emerald-800 border border-emerald-200 font-medium">
+
+          {/* Potencialidades e Habilidades Observadas pela IA */}
+          {(session.aiPedagogicalSynthesis?.strengths || (exec && exec.whatChildCanDo)) && (
+            <div className="pt-2 border-t border-slate-100 text-xs flex flex-wrap gap-2 items-center">
+              <span className="font-bold text-slate-700">Evidências e Potencialidades:</span>
+              {session.aiPedagogicalSynthesis?.strengths?.map((str, i) => (
+                <span key={i} className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
                   ✓ {str}
                 </span>
-              ))}
+              )) || (
+                <span className="text-slate-600 italic">{exec?.whatChildCanDo}</span>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        {/* 2. OBSERVAÇÕES ANOTADAS PELO SUPERVISOR */}
+        <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-amber-200/50">
+            <div className="flex items-center gap-2 text-amber-900">
+              <FileText className="w-4 h-4 text-amber-700" />
+              <h4 className="font-display font-bold text-sm sm:text-base text-amber-950">
+                Observações Anotadas pelo Supervisor
+              </h4>
+            </div>
+            {!isEditingNotes && (
+              <button
+                onClick={() => setIsEditingNotes(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold transition-colors cursor-pointer"
+                title="Editar ou registrar observações"
+              >
+                <Pencil className="w-3 h-3" />
+                <span>{supervisorNotes ? 'Editar Notas' : 'Adicionar Notas'}</span>
+              </button>
+            )}
+          </div>
+
+          {notesSaveSuccess && (
+            <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Observações do supervisor salvas com sucesso!</span>
+            </div>
+          )}
+
+          {isEditingNotes ? (
+            <div className="space-y-2">
+              <textarea
+                rows={3}
+                value={supervisorNotes}
+                onChange={(e) => setSupervisorNotes(e.target.value)}
+                placeholder="Insira aqui as observações sobre o comportamento da criança, hesitações, postura ou fatores ambientais observados durante a aplicação..."
+                className="w-full p-3 rounded-xl border border-amber-300 bg-white text-xs sm:text-sm text-slate-800 resize-none focus:outline-hidden focus:border-amber-500"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setSupervisorNotes(session.notes || '');
+                    setIsEditingNotes(false);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={isSavingNotes}
+                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Save className="w-3 h-3" />
+                  <span>{isSavingNotes ? 'Salvando...' : 'Salvar Observações'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/80 p-3.5 rounded-xl border border-amber-200/80 text-xs sm:text-sm">
+              {supervisorNotes ? (
+                <p className="italic text-slate-800 font-medium leading-relaxed">
+                  "{supervisorNotes}"
+                </p>
+              ) : (
+                <p className="text-slate-400 italic">
+                  Nenhuma observação anotada pelo supervisor até o momento. Clique em "Adicionar Notas" para registrar.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 3. PARECER FORMAL DA GESTÃO (SE AVALIADO POR ADMIN/SUPERADMIN) */}
+        {session.adminFeedback && (
+          <div className="p-5 rounded-2xl bg-sky-50/70 border border-sky-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2 text-sky-900 pb-1 border-b border-sky-200/50">
+              <MessageSquare className="w-4 h-4 text-sky-700" />
+              <h4 className="font-display font-bold text-sm text-sky-950">
+                Parecer de Homologação da Gestão Pedagógica
+              </h4>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium bg-white/80 p-3.5 rounded-xl border border-sky-200/70">
+              "{session.adminFeedback}"
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* SEÇÃO 20: RESUMO EXECUTIVO PARA O SUPERVISOR (Responde às 7 Perguntas) */}
       {exec && (
@@ -423,6 +580,19 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
                 </div>
               </div>
 
+              {session.letterSequence && session.letterSequence.length > 0 && (
+                <div className="text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <span className="font-bold text-slate-600 block mb-1">Sequência Sorteada das 10 Letras:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {session.letterSequence.map((l, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-white font-mono font-black text-indigo-700 border border-slate-200 shadow-2xs">
+                        {l.toLocaleUpperCase('pt-BR')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {letters.confusions && letters.confusions.length > 0 && (
                 <div className="text-xs text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
                   <span className="font-bold block mb-1">Confusões grafofonêmicas registradas:</span>
@@ -469,11 +639,42 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
             </div>
           )}
 
+          {/* Etapa de Pseudopalavras (Decodificação Grafema-Fonema) */}
+          {pseudowords && pseudowords.presented > 0 && (
+            <div className="p-5 rounded-2xl bg-white border border-purple-200/90 shadow-xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+                <span className="font-bold text-purple-950 text-base">Etapa: Pseudopalavras (Decodificação)</span>
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                  {pseudowords.accuracy}% de acurácia
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded-lg bg-purple-50/60">
+                  <span className="text-purple-600 block">Decodificadas</span>
+                  <span className="font-black text-emerald-600 text-base">{pseudowords.correct} de {pseudowords.presented}</span>
+                </div>
+                <div className="p-2 rounded-lg bg-purple-50/60">
+                  <span className="text-purple-600 block">Silabações</span>
+                  <span className="font-black text-slate-800 text-base">{pseudowords.silabationCount}</span>
+                </div>
+                <div className="p-2 rounded-lg bg-purple-50/60">
+                  <span className="text-purple-600 block">Tempo Médio</span>
+                  <span className="font-black text-slate-800 text-base">{(pseudowords.averageDurationMs / 1000).toFixed(1)}s</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-purple-900/80 leading-relaxed">
+                Avaliação estrita da decodificação grafofonêmica sem apoio de significado léxico (Seção 6 do protocolo).
+              </p>
+            </div>
+          )}
+
           {/* Etapa 3: Leitura de Texto em Contexto */}
           {text && text.evaluated && (
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <span className="font-bold text-slate-900 text-base">Etapa 3: Leitura de Texto</span>
+                <span className="font-bold text-slate-900 text-base">Etapa: Leitura de Texto</span>
                 <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                   {text.wordsPerMinute} PCPM ({text.accuracy}%)
                 </span>
@@ -500,11 +701,71 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({
             </div>
           )}
 
+          {/* Etapa de Compreensão Textual (Seção 10) */}
+          {comprehension && (
+            <div className="p-5 rounded-2xl bg-white border border-teal-200 shadow-xs space-y-3 col-span-1 md:col-span-2">
+              <div className="flex items-center justify-between pb-2 border-b border-teal-100">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-teal-950 text-base">Compreensão Textual (3 Perguntas Orais)</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-teal-100 text-teal-900 uppercase">
+                    Supervisor
+                  </span>
+                </div>
+                {comprehension.evaluated ? (
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                    {comprehension.correctCount} de {comprehension.totalQuestions} acertos ({comprehension.scorePercentage}%)
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    Não Aplicada (Critério de Progressão)
+                  </span>
+                )}
+              </div>
+
+              {comprehension.evaluated && comprehension.answers && comprehension.answers.length > 0 ? (
+                <div className="space-y-2 pt-1">
+                  {comprehension.answers.map((ans, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-teal-50/50 border border-teal-100 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-teal-950 flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded bg-white text-[10px] uppercase font-black border border-teal-200">
+                            {ans.questionType}
+                          </span>
+                          Pergunta {idx + 1}: {ans.question}
+                        </span>
+                        <span
+                          className={`font-black px-2 py-0.5 rounded text-[11px] uppercase ${
+                            ans.status === 'CORRETO'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : ans.status === 'INCORRETO'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {ans.status}
+                        </span>
+                      </div>
+                      {ans.childResponseText && (
+                        <p className="text-slate-600 italic pl-1">
+                          Resposta da criança: "{ans.childResponseText}"
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic">
+                  {comprehension.ineligibilityReason || 'A etapa de compreensão não foi realizada pois a criança não atingiu o critério de leitura mínima do texto.'}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Etapa 4: Frases Curtas (Prosódia Avançada) */}
           {phrases && phrases.evaluated && (
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <span className="font-bold text-slate-900 text-base">Etapa 4: Prosódia em Frases</span>
+                <span className="font-bold text-slate-900 text-base">Etapa: Prosódia em Frases</span>
                 <span className="text-xs font-black px-2 py-0.5 rounded-full bg-violet-100 text-violet-800">
                   Confirmado Leitor Fluente
                 </span>

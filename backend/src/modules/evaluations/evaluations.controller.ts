@@ -88,6 +88,21 @@ export class EvaluationsController {
     }
   }
 
+  public async updateNotes(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { notes } = z.object({ notes: z.string() }).parse(req.body);
+      const session = await evaluationsService.updateEvaluationNotes({
+        id: getParam(req.params.id),
+        notes,
+        actorUserId: req.user!.id,
+        actorSchoolId: req.user!.schoolId
+      });
+      res.status(200).json({ status: 'success', data: { session } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = createEvaluationSessionSchema.parse(req.body);
@@ -113,6 +128,8 @@ export class EvaluationsController {
 
       const targetText = String(req.body.targetText || '').trim();
       const itemType = String(req.body.itemType || 'word').trim();
+
+      console.log(`[EvaluationsController] POST /analyze-audio: arquivo=${req.file.filename} (${req.file.size} bytes), alvo="${targetText}", tipo="${itemType}"`);
 
       if (!targetText) {
         throw new AppError('O campo targetText é obrigatório', 400);

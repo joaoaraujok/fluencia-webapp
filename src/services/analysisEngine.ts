@@ -5,6 +5,7 @@ import {
   WordsReportMetrics,
   TextReportMetrics,
   PhrasesReportMetrics,
+  ComprehensionReportMetrics,
   ExecutiveSummary
 } from '../types/evaluation';
 import { QuestionItem, PedagogicalDiagnosis } from '../types/question';
@@ -116,6 +117,11 @@ export function compareSpeech(
   // Se for texto corrido (Etapa 3)
   if (expectedItem.type === 'text') {
     return compareText(normExpected, normTranscript, confidence);
+  }
+
+  // Se for pseudopalavra (decodificação grafema-fonema pura)
+  if (expectedItem.type === 'pseudoword') {
+    return comparePseudoword(expectedItem, normExpected, normTranscript, confidence);
   }
 
   // Se for frase (Nível 4 - Etapa 4)
@@ -537,6 +543,89 @@ function compareWord(
   };
 }
 
+/**
+ * Avaliação estrita de pseudopalavras (não-palavras):
+ * - Avalia a decodificação grafema-fonema pela rota fonológica;
+ * - NUNCA aceita substituição semântica por palavra real;
+ * - Considera a correspondência fonológica esperada e tolera variações regionais;
+ * - Avalia autocorreção considerando a última emissão válida antes do encerramento.
+ */
+function comparePseudoword(
+  _item: QuestionItem,
+  normExpected: string,
+  normTranscript: string,
+  _confidence: number
+): {
+  status: RecognitionStatus;
+  normalizedExpected: string;
+  normalizedTranscript: string;
+  distance: number;
+  observedError?: string;
+  isSelfCorrection?: boolean;
+} {
+  const rawWords = normTranscript.split(/\s+/).filter(Boolean);
+  if (rawWords.length === 0) {
+    return {
+      status: 'SEM_RESPOSTA',
+      normalizedExpected: normExpected,
+      normalizedTranscript: '',
+      distance: normExpected.length,
+      observedError: 'Nenhuma resposta sonora captada'
+    };
+  }
+
+  const cleanTranscript = rawWords.join(' ');
+  const lastSpokenWord = rawWords[rawWords.length - 1];
+  const isMultipleAttempts = rawWords.length > 1;
+
+  // 1. Correspondência literal exata com a transcrição inteira ou com a última emissão
+  if (normExpected === cleanTranscript || normExpected === lastSpokenWord) {
+    return {
+      status: 'CORRETO',
+      normalizedExpected: normExpected,
+      normalizedTranscript: cleanTranscript,
+      distance: 0,
+      isSelfCorrection: isMultipleAttempts && rawWords[0] !== normExpected
+    };
+  }
+
+  // 2. Equivalência fonética homófona estrita (respeitando rota fonológica e sotaques regionais)
+  const phoneticExpected = phoneticSimplify(normExpected);
+  if (
+    phoneticSimplify(cleanTranscript) === phoneticExpected ||
+    phoneticSimplify(lastSpokenWord) === phoneticExpected
+  ) {
+    return {
+      status: 'CORRETO',
+      normalizedExpected: normExpected,
+      normalizedTranscript: cleanTranscript,
+      distance: 0,
+      isSelfCorrection: isMultipleAttempts && phoneticSimplify(rawWords[0]) !== phoneticExpected
+    };
+  }
+
+  // 3. Silabação com síntese final correta (ex: "BA... LO... BALO")
+  if (rawWords.some(w => w === normExpected || phoneticSimplify(w) === phoneticExpected)) {
+    return {
+      status: 'CORRETO',
+      normalizedExpected: normExpected,
+      normalizedTranscript: cleanTranscript,
+      distance: 0,
+      isSelfCorrection: true
+    };
+  }
+
+  // 4. Distância e detecção de erro na rota fonológica
+  const distToLast = levenshteinDistance(normExpected, lastSpokenWord);
+  return {
+    status: 'INCORRETO',
+    normalizedExpected: normExpected,
+    normalizedTranscript: cleanTranscript,
+    distance: distToLast,
+    observedError: `Desvio na decodificação grafema-fonema da pseudopalavra (esperado: ${normExpected}, emitido: ${lastSpokenWord})`
+  };
+}
+
 function comparePhrase(normExpected: string, normTranscript: string, _confidence: number) {
   const expectedWords = normExpected.split(/\s+/);
   const rawTranscriptWords = normTranscript.split(/\s+/);
@@ -845,7 +934,7 @@ export function compileLettersMetrics(items: EvaluationItemResult[]): LettersRep
   const letterItems = items.filter(i => i.type === 'letter');
   const presented = letterItems.length;
   const correct = letterItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
-  const noResponseCount = letterItems.filter(i => i.status === 'SEM_RESPOSTA').length;
+  const noResponseCount = letterItems.filter(i => i.status === 'SEM_RESPOSTA' || i.status === 'OMISSAO' || i.isOmission).length;
   const timeExceededCount = letterItems.filter(i => i.isTimeLimitReached).length;
   const accuracy = presented > 0 ? Math.round((correct / presented) * 100) : 0;
 
@@ -896,11 +985,12 @@ export function compileWordsMetrics(items: EvaluationItemResult[]): WordsReportM
   const presented = wordItems.length;
   const correct = wordItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
   const incorrect = wordItems.filter(i => i.status === 'INCORRETO').length;
-  const noResponse = wordItems.filter(i => i.status === 'SEM_RESPOSTA').length;
+  const noResponse = wordItems.filter(i => i.status === 'SEM_RESPOSTA' || i.status === 'OMISSAO' || i.isOmission).length;
   const timeExceededCount = wordItems.filter(i => i.isTimeLimitReached).length;
   const accuracy = presented > 0 ? Math.round((correct / presented) * 100) : 0;
 
   let totalDurationMs = 0;
+  let totalEffectiveDurationMs = 0;
   let totalReactionMs = 0;
   let validTimeCount = 0;
   let pausesCount = 0;
@@ -911,6 +1001,7 @@ export function compileWordsMetrics(items: EvaluationItemResult[]): WordsReportM
   for (const item of wordItems) {
     if (item.responseTimeMs) {
       totalDurationMs += item.responseTimeMs;
+      totalEffectiveDurationMs += item.effectiveReadingTimeMs || item.responseTimeMs;
       validTimeCount++;
     }
     if (item.reactionTimeMs) {
@@ -928,9 +1019,71 @@ export function compileWordsMetrics(items: EvaluationItemResult[]): WordsReportM
   const averageDurationMs = validTimeCount > 0 ? Math.round(totalDurationMs / validTimeCount) : 0;
   const averageReactionTimeMs = validTimeCount > 0 ? Math.round(totalReactionMs / validTimeCount) : 0;
 
-  // Cálculo da velocidade: palavras corretas por minuto
-  const totalSeconds = totalDurationMs > 0 ? totalDurationMs / 1000 : 1;
-  const wordsPerMinute = Math.round((correct / totalSeconds) * 60);
+  // Cálculo da velocidade: palavras corretas por minuto baseada em tempo efetivo de leitura
+  const effectiveSeconds = totalEffectiveDurationMs > 0 ? totalEffectiveDurationMs / 1000 : (totalDurationMs > 0 ? totalDurationMs / 1000 : 1);
+  const wordsPerMinute = Math.round((correct / effectiveSeconds) * 60);
+
+  return {
+    presented,
+    correct,
+    incorrect,
+    noResponse,
+    timeExceededCount,
+    wordsPerMinute,
+    accuracy,
+    averageReactionTimeMs,
+    averageDurationMs,
+    pausesCount,
+    selfCorrectionsCount,
+    silabationCount,
+    errorBreakdown
+  };
+}
+
+/**
+ * Compila as métricas consolidadas da Etapa de Pseudopalavras (Decodificação Fonológica Pura)
+ */
+export function compilePseudowordsMetrics(items: EvaluationItemResult[]): WordsReportMetrics {
+  const pseudoItems = items.filter(i => i.type === 'pseudoword');
+  const presented = pseudoItems.length;
+  const correct = pseudoItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
+  const incorrect = pseudoItems.filter(i => i.status === 'INCORRETO').length;
+  const noResponse = pseudoItems.filter(i => i.status === 'SEM_RESPOSTA' || i.status === 'OMISSAO' || i.isOmission).length;
+  const timeExceededCount = pseudoItems.filter(i => i.isTimeLimitReached).length;
+  const accuracy = presented > 0 ? Math.round((correct / presented) * 100) : 0;
+
+  let totalDurationMs = 0;
+  let totalEffectiveDurationMs = 0;
+  let totalReactionMs = 0;
+  let validTimeCount = 0;
+  let pausesCount = 0;
+  let selfCorrectionsCount = 0;
+  let silabationCount = 0;
+  const errorBreakdown: Record<string, number> = {};
+
+  for (const item of pseudoItems) {
+    if (item.responseTimeMs) {
+      totalDurationMs += item.responseTimeMs;
+      totalEffectiveDurationMs += item.effectiveReadingTimeMs || item.responseTimeMs;
+      validTimeCount++;
+    }
+    if (item.reactionTimeMs) {
+      totalReactionMs += item.reactionTimeMs;
+    }
+    if (item.pausesCount) pausesCount += item.pausesCount;
+    if (item.isSelfCorrection) selfCorrectionsCount++;
+    if (item.silabationDetected) silabationCount++;
+
+    if (item.observedError) {
+      errorBreakdown[item.observedError] = (errorBreakdown[item.observedError] || 0) + 1;
+    }
+  }
+
+  const averageDurationMs = validTimeCount > 0 ? Math.round(totalDurationMs / validTimeCount) : 0;
+  const averageReactionTimeMs = validTimeCount > 0 ? Math.round(totalReactionMs / validTimeCount) : 0;
+
+  const effectiveSeconds = totalEffectiveDurationMs > 0 ? totalEffectiveDurationMs / 1000 : (totalDurationMs > 0 ? totalDurationMs / 1000 : 1);
+  const wordsPerMinute = Math.round((correct / effectiveSeconds) * 60);
 
   return {
     presented,
@@ -955,33 +1108,19 @@ export function compileWordsMetrics(items: EvaluationItemResult[]): WordsReportM
 export function classifyPedagogicalDiagnosis(
   lettersReport: LettersReportMetrics,
   wordsReport: WordsReportMetrics,
-  textReport?: TextReportMetrics
+  textReport?: TextReportMetrics,
+  _pseudowordsReport?: WordsReportMetrics,
+  _comprehensionReport?: ComprehensionReportMetrics
 ): PedagogicalDiagnosis {
-  // Regra 1: PRÉ-LEITOR 1
-  // A criança não conseguiu identificar letras de maneira suficiente (< 10 letras)
-  if (lettersReport.presented > 0 && lettersReport.correct < 10) {
-    return 'PRE_LEITOR_1';
-  }
-
-  // Regra 1: PRÉ-LEITOR 2
-  // A criança identificou 10 ou mais letras corretamente, mas 0 palavras corretas
-  if (lettersReport.correct >= 10 && wordsReport.presented > 0 && wordsReport.correct === 0) {
-    return 'PRE_LEITOR_2';
-  }
-
-  // Regra 1 & 9: PRÉ-LEITOR 3
-  // Conseguiu ler de 1 a 10 palavras isoladas
+  // Se a criança leu palavras reais, a classificação decorre da proficiência em leitura de palavras/texto:
   if (wordsReport.correct >= 1 && wordsReport.correct <= 10) {
     return 'PRE_LEITOR_3';
   }
 
-  // Regra 1 & 9: LEITOR INICIANTE 1
-  // Conseguiu ler de 11 a 20 palavras isoladas em 60 segundos (ou WPM entre 11 e 20)
   if (wordsReport.wordsPerMinute >= 11 && wordsReport.wordsPerMinute <= 20) {
     return 'LEITOR_INICIANTE_1';
   }
 
-  // Se leu 21 ou mais palavras isoladas por minuto:
   if (wordsReport.wordsPerMinute >= 21 || wordsReport.correct >= 11) {
     // Se a leitura textual foi realizada e preenche os critérios simultâneos de fluência:
     // Pelo menos 65 PCPM + > 90% precisão + automaticidade
@@ -993,8 +1132,14 @@ export function classifyPedagogicalDiagnosis(
     return 'LEITOR_INICIANTE_2';
   }
 
-  // Fallback seguro baseado em letras
-  return lettersReport.correct >= 10 ? 'PRE_LEITOR_2' : 'PRE_LEITOR_1';
+  // Se não leu palavras (0 palavras lidas ou etapa de palavras não atingida por critério de letras):
+  // Limiar de domínio do alfabeto básico: pelo menos 7 acertos (em baterias de 10) ou 10 acertos (em baterias maiores)
+  const minLettersConsolidated = lettersReport.presented <= 10 ? 7 : 10;
+  if (lettersReport.presented === 0 || lettersReport.correct < minLettersConsolidated) {
+    return 'PRE_LEITOR_1';
+  }
+
+  return 'PRE_LEITOR_2';
 }
 
 /**
@@ -1005,24 +1150,28 @@ export function generateClassificationEvidences(
   lettersReport: LettersReportMetrics,
   wordsReport: WordsReportMetrics,
   textReport?: TextReportMetrics,
-  phrasesReport?: PhrasesReportMetrics
+  phrasesReport?: PhrasesReportMetrics,
+  pseudowordsReport?: WordsReportMetrics,
+  comprehensionReport?: ComprehensionReportMetrics
 ): string[] {
   const evidences: string[] = [];
 
   switch (diagnosis) {
-    case 'PRE_LEITOR_1':
+    case 'PRE_LEITOR_1': {
+      const minLettersReq = lettersReport.presented <= 10 ? 7 : 10;
       evidences.push(
         `A criança identificou ${lettersReport.correct} de ${lettersReport.presented} letras apresentadas (${lettersReport.accuracy}% de precisão), com tempo médio de resposta de ${(lettersReport.averageReactionTimeMs / 1000).toFixed(1)}s.`
       );
       evidences.push(
-        'O número de letras reconhecidas permaneceu abaixo do limiar operacional de 10 acertos necessário para progressão consistente à leitura de palavras isoladas.'
+        `O número de letras reconhecidas permaneceu abaixo do limiar operacional de ${minLettersReq} acertos necessário para progressão consistente à leitura de palavras isoladas.`
       );
       if (lettersReport.noResponseCount > 0) {
         evidences.push(
-          `Foram registradas ${lettersReport.noResponseCount} ausências de resposta no limite de 10 segundos por letra.`
+          `Foram registradas ${lettersReport.noResponseCount} ausências de resposta no limite regulamentar por letra.`
         );
       }
       break;
+    }
 
     case 'PRE_LEITOR_2':
       evidences.push(
@@ -1098,6 +1247,20 @@ export function generateClassificationEvidences(
       break;
   }
 
+  // Evidências adicionais de pseudopalavras (rota fonológica pura)
+  if (pseudowordsReport && pseudowordsReport.presented > 0) {
+    evidences.push(
+      `Na decodificação fonológica de pseudopalavras, obteve ${pseudowordsReport.correct} acertos de ${pseudowordsReport.presented} itens (${pseudowordsReport.accuracy}% de precisão grafema-fonema, velocidade de ${pseudowordsReport.wordsPerMinute} PCPM).`
+    );
+  }
+
+  // Evidências adicionais de compreensão textual
+  if (comprehensionReport && comprehensionReport.evaluated) {
+    evidences.push(
+      `Na avaliação de compreensão textual, o estudante respondeu corretamente a ${comprehensionReport.correctCount} de ${comprehensionReport.totalQuestions} questões aplicadas (${comprehensionReport.scorePercentage}% de acerto).`
+    );
+  }
+
   return evidences;
 }
 
@@ -1109,7 +1272,9 @@ export function generateExecutiveSummary(
   lettersReport: LettersReportMetrics,
   wordsReport: WordsReportMetrics,
   textReport?: TextReportMetrics,
-  _phrasesReport?: PhrasesReportMetrics
+  _phrasesReport?: PhrasesReportMetrics,
+  _pseudowordsReport?: WordsReportMetrics,
+  _comprehensionReport?: ComprehensionReportMetrics
 ): ExecutiveSummary {
   switch (diagnosis) {
     case 'PRE_LEITOR_1':

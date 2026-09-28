@@ -23,6 +23,11 @@ export interface AppSettings {
   fontSize: FontSizeSetting;         // 'normal', 'large', 'extralarge'
   soundEnabled: boolean;             // Bipes de contagem 3-2-1 e alertas sonoros suaves
   
+  // --- Critérios Mínimos de Progressão Entre Níveis de Dificuldade ---
+  minLettersForWords: number;        // Mínimo de letras corretas para avançar para palavras (padrão: 7)
+  minWordsPercentageForPseudo: number; // Mínimo percentual de palavras corretas para avançar para pseudopalavras (padrão: 60%)
+  minPseudoPercentageForText: number;  // Mínimo percentual de pseudopalavras corretas para avançar para texto (padrão: 50%)
+
   // --- Metadados e Versionamento Oficial ---
   evaluationCriteriaVersion: string; // Versão dos critérios pedagógicos (ex: '2026.1')
 
@@ -50,6 +55,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   educatorManualControls: true,  // Botões de apoio rápido do educador ativados
   fontSize: 'large',
   soundEnabled: true,
+  minLettersForWords: 7,         // Pelo menos 7 letras corretas para avançar para palavras
+  minWordsPercentageForPseudo: 60, // Pelo menos 60% de palavras corretas para avançar para pseudopalavras
+  minPseudoPercentageForText: 50,  // Pelo menos 50% de pseudopalavras corretas para avançar para o texto
   evaluationCriteriaVersion: '2026.1',
 
   // Compatibilidade com acessos legados:

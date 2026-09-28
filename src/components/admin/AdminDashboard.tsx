@@ -18,7 +18,11 @@ import {
   MessageSquare,
   Play,
   X,
-  Building
+  Building,
+  Eye,
+  Sparkles,
+  FileText,
+  Save
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
@@ -109,6 +113,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
     adminFeedback: '',
     adminReviewStatus: 'APROVADO'
   });
+
+  // Modal de Detalhes Completos do Relatório (IA + Supervisor + Gestão)
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [selectedReportSession, setSelectedReportSession] = useState<any | null>(null);
+  const [reportSupervisorNotes, setReportSupervisorNotes] = useState<string>('');
+  const [isEditingReportNotes, setIsEditingReportNotes] = useState<boolean>(false);
+  const [isSavingReportNotes, setIsSavingReportNotes] = useState<boolean>(false);
 
   // Notificações na UI
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -513,6 +524,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
     }
   };
 
+  // Abertura e manipulação do Relatório Detalhado (IA + Supervisor + Gestão)
+  const handleOpenReportDetailModal = async (sessionOrPartial: any) => {
+    let sessionData = sessionOrPartial;
+    if (sessionOrPartial?.id) {
+      try {
+        const res = await api.getEvaluationById(sessionOrPartial.id);
+        if (res.session) {
+          sessionData = res.session;
+        }
+      } catch (err) {
+        console.warn('Utilizando dados disponíveis da sessão:', err);
+      }
+    }
+    setSelectedReportSession(sessionData);
+    setReportSupervisorNotes(sessionData.notes || '');
+    setIsEditingReportNotes(false);
+    setIsReportModalOpen(true);
+  };
+
+  const handleSaveReportSupervisorNotes = async () => {
+    if (!selectedReportSession?.id) return;
+    setIsSavingReportNotes(true);
+    try {
+      await api.updateEvaluationNotes(selectedReportSession.id, reportSupervisorNotes.trim());
+      setSelectedReportSession({ ...selectedReportSession, notes: reportSupervisorNotes.trim() });
+      showNotification('Observações do supervisor atualizadas com sucesso!');
+      setIsEditingReportNotes(false);
+      loadTabData(activeTab);
+    } catch (err: any) {
+      showNotification(err.message || 'Falha ao atualizar observações.', 'error');
+    } finally {
+      setIsSavingReportNotes(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-16">
       {/* Banner de Notificação */}
@@ -713,9 +759,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
               {overview?.recentEvaluations && overview.recentEvaluations.length > 0 ? (
                 <ul className="space-y-2 text-xs">
                   {overview.recentEvaluations.map((ev) => (
-                    <li key={ev.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
-                      <span className="font-bold text-slate-800">{ev.student?.name}</span>
-                      <span className="text-slate-500 font-semibold">{ev.accuracyPercentage}% ({((ev.averageResponseTimeMs || 0)/1000).toFixed(1)}s)</span>
+                    <li
+                      key={ev.id}
+                      onClick={() => handleOpenReportDetailModal(ev)}
+                      className="flex justify-between items-center p-2.5 rounded-lg bg-slate-50 hover:bg-indigo-50/60 cursor-pointer transition-colors group"
+                      title="Clique para abrir o relatório completo com IA e observações do supervisor"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 shrink-0" />
+                        <span className="font-bold text-slate-800 group-hover:text-indigo-900">{ev.student?.name}</span>
+                      </div>
+                      <span className="text-slate-500 font-semibold group-hover:text-indigo-700">
+                        {ev.accuracyPercentage}% ({((ev.averageResponseTimeMs || 0)/1000).toFixed(1)}s)
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -812,26 +868,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                           {st.latestEvaluation ? `${((st.latestEvaluation.averageResponseTimeMs || 0)/1000).toFixed(1)} s` : '—'}
                         </td>
                         <td className="py-3 px-3 text-right">
-                          {onSelectStudentForTest && (
-                            <button
-                              onClick={() => {
-                                const fullStudent: Student = {
-                                  id: st.id,
-                                  schoolId: classReportData.class?.school?.id || '',
-                                  classId: selectedClassId,
-                                  name: st.name,
-                                  registrationNumber: st.registrationNumber,
-                                  active: true
-                                };
-                                onSelectStudentForTest(fullStudent);
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer"
-                              title="Iniciar avaliação diagnóstica com este aluno"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              <span>Avaliar</span>
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {st.hasEvaluation && st.latestEvaluation && (
+                              <button
+                                onClick={() => handleOpenReportDetailModal(st.latestEvaluation)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold transition-colors cursor-pointer"
+                                title="Ver relatório com caixa de informações da IA e observações do supervisor"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Ver Relatório</span>
+                              </button>
+                            )}
+                            {onSelectStudentForTest && isSupervisor && (
+                              <button
+                                onClick={() => {
+                                  const fullStudent: Student = {
+                                    id: st.id,
+                                    schoolId: classReportData.class?.school?.id || '',
+                                    classId: selectedClassId,
+                                    name: st.name,
+                                    registrationNumber: st.registrationNumber,
+                                    active: true
+                                  };
+                                  onSelectStudentForTest(fullStudent);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer"
+                                title="Iniciar avaliação diagnóstica com este aluno"
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                                <span>Fazer Teste</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -910,14 +978,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                       )}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => handleOpenReviewModal(ev)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold transition-colors cursor-pointer"
-                        title="Avaliar este relatório e emitir parecer"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Avaliar</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenReportDetailModal(ev)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                          title="Visualizar relatório completo com IA e observações"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Ver</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenReviewModal(ev)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold transition-colors cursor-pointer"
+                          title="Avaliar este relatório e emitir parecer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Avaliar</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1161,7 +1239,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-auto">
-                  {onSelectStudentForTest && (
+                  {onSelectStudentForTest && isSupervisor && (
                     <button
                       onClick={() => onSelectStudentForTest(st)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-colors cursor-pointer"
@@ -1710,31 +1788,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
       {/* MODAL: Avaliar Relatório (Admin e Superadmin) */}
       {isReviewModalOpen && reviewingSession && (
         <div className="modal-overlay animate-fadeIn">
-          <div className="modal-content max-w-lg p-6">
+          <div className="modal-content max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
               <div>
-                <h3 className="font-bold text-base text-slate-900">
-                  Avaliação de Relatório Institucional
+                <h3 className="font-display font-black text-lg text-slate-900">
+                  Avaliação e Homologação de Relatório Institucional
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Aluno: <strong>{reviewingSession.student?.name}</strong> • Turma: {reviewingSession.class?.name}
+                  Estudante: <strong>{reviewingSession.student?.name}</strong> • Turma: {reviewingSession.class?.name} • Escola: {reviewingSession.school?.name}
                 </p>
               </div>
-              <button onClick={() => setIsReviewModalOpen(false)} className="p-1 hover:bg-slate-100 rounded">
+              <button onClick={() => setIsReviewModalOpen(false)} className="p-1 hover:bg-slate-100 rounded cursor-pointer">
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveReview} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
-                <p><strong>Escola:</strong> {reviewingSession.school?.name}</p>
-                <p><strong>Supervisor Responsável:</strong> {reviewingSession.evaluator?.name || 'Supervisor'}</p>
-                <p><strong>Acurácia da Leitura:</strong> <span className="font-black text-indigo-700">{reviewingSession.accuracyPercentage}%</span> ({((reviewingSession.averageResponseTimeMs || 0)/1000).toFixed(1)}s)</p>
-                {reviewingSession.notes && (
-                  <p className="text-slate-600 pt-1"><strong>Observações do Supervisor:</strong> {reviewingSession.notes}</p>
+            {/* CAIXA DE INFORMAÇÕES: RELATÓRIO DA IA E OBSERVAÇÕES DO SUPERVISOR */}
+            <div className="space-y-3 mb-5">
+              {/* Relatório da IA */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-200/90 text-xs space-y-2">
+                <div className="flex items-center justify-between pb-1.5 border-b border-indigo-100">
+                  <div className="flex items-center gap-1.5 text-indigo-700 font-bold">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Relatório Diagnóstico Gerado pela IA</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-black text-[10px]">
+                      Acurácia: {reviewingSession.accuracyPercentage}%
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-semibold text-[10px]">
+                      Tempo: {((reviewingSession.averageResponseTimeMs || 0)/1000).toFixed(1)}s
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-slate-700 leading-relaxed">
+                  {reviewingSession.summaryJson?.executiveSummary ||
+                   (reviewingSession.accuracyPercentage >= 80
+                     ? `A IA apurou excelente padrão de leitura (${reviewingSession.accuracyPercentage}% de precisão). O estudante demonstrou alta correspondência grafema-fonema, tempo ágil de reação e decodificação precisa.`
+                     : reviewingSession.accuracyPercentage >= 50
+                     ? `A IA apurou desempenho intermediário (${reviewingSession.accuracyPercentage}% de precisão). Apresenta domínio em palavras canônicas, demonstrando oportunidade de apoio na leitura de dígrafos e estruturas silábicas complexas.`
+                     : `A IA identificou nível compatível com fase inicial de apropriação (Pré-Leitor, ${reviewingSession.accuracyPercentage}% de precisão). Recomenda-se acompanhamento no princípio alfabético e correspondência grafema-som.`
+                   )}
+                </p>
+
+                {/* Recomendações da IA */}
+                {Array.isArray(reviewingSession.summaryJson?.recommendations) && reviewingSession.summaryJson.recommendations.length > 0 && (
+                  <div className="pt-1.5 border-t border-indigo-100 flex flex-wrap gap-1.5 items-center">
+                    <span className="font-bold text-slate-700 text-[11px]">Intervenções sugeridas pela IA:</span>
+                    {reviewingSession.summaryJson.recommendations.map((rec: any, idx: number) => (
+                      <span key={idx} className="px-2 py-0.5 rounded bg-white text-indigo-900 border border-indigo-200 text-[10px] font-semibold">
+                        • {rec.title || rec}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
 
+              {/* Observações do Supervisor */}
+              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs space-y-1.5">
+                <div className="flex items-center justify-between pb-1 border-b border-amber-200/50">
+                  <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                    <FileText className="w-4 h-4 text-amber-700" />
+                    <span>Observações Anotadas pelo Supervisor</span>
+                  </div>
+                  <span className="text-[11px] text-amber-800 font-medium">
+                    Aplicador: {reviewingSession.evaluator?.name || 'Supervisor'}
+                  </span>
+                </div>
+                {reviewingSession.notes ? (
+                  <p className="italic text-slate-800 leading-relaxed font-medium bg-white/70 p-2.5 rounded-lg border border-amber-200/60">
+                    "{reviewingSession.notes}"
+                  </p>
+                ) : (
+                  <p className="text-slate-400 italic">
+                    Nenhuma anotação complementar foi registrada pelo supervisor no momento da aplicação do teste.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveReview} className="space-y-4 pt-2 border-t border-slate-100">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Status da Avaliação / Parecer de Gestão *
@@ -1744,9 +1878,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                   onChange={(e) => setReviewForm({ ...reviewForm, adminReviewStatus: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 bg-white"
                 >
-                  <option value="APROVADO">APROVADO — Diagnóstico validado sem ressalvas</option>
-                  <option value="EM_OBSERVACAO">EM OBSERVAÇÃO — Acompanhar próxima rodada</option>
-                  <option value="REQUER_ATENCAO">REQUER ATENÇÃO — Encaminhar para reforço/fonoaudiologia</option>
+                  <option value="APROVADO">APROVADO — Diagnóstico validado e homologado sem ressalvas</option>
+                  <option value="EM_OBSERVACAO">EM OBSERVAÇÃO — Acompanhar evolução na próxima rodada</option>
+                  <option value="REQUER_ATENCAO">REQUER ATENÇÃO — Encaminhar para intervenção pedagógica focal</option>
                 </select>
               </div>
 
@@ -1759,7 +1893,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                   required
                   value={reviewForm.adminFeedback}
                   onChange={(e) => setReviewForm({ ...reviewForm, adminFeedback: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 resize-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 resize-none focus:outline-hidden focus:border-sky-500"
                   placeholder="Escreva as diretrizes de acompanhamento para o supervisor e corpo pedagógico..."
                 />
               </div>
@@ -1774,12 +1908,312 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onSelect
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold cursor-pointer shadow-xs"
                 >
                   Homologar Parecer
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Visualização Completa do Relatório (IA + Supervisor + Gestão) */}
+      {isReportModalOpen && selectedReportSession && (
+        <div className="modal-overlay animate-fadeIn">
+          <div className="modal-content max-w-3xl p-6 sm:p-7 max-h-[92vh] overflow-y-auto space-y-6">
+            <div className="flex justify-between items-start pb-4 border-b border-slate-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display font-black text-xl text-slate-900 leading-tight">
+                    Relatório da Avaliação de Leitura
+                  </h3>
+                  {selectedReportSession.adminReviewStatus && (
+                    <span
+                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                        selectedReportSession.adminReviewStatus === 'APROVADO'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : selectedReportSession.adminReviewStatus === 'REQUER_ATENCAO'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : selectedReportSession.adminReviewStatus === 'EM_OBSERVACAO'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}
+                    >
+                      {selectedReportSession.adminReviewStatus}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Estudante: <strong className="text-slate-800">{selectedReportSession.student?.name}</strong> • Turma: {selectedReportSession.class?.name || 'Turma'} • Escola: {selectedReportSession.school?.name || 'Escola'}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Data: {new Date(selectedReportSession.createdAt || Date.now()).toLocaleString('pt-BR')} • Supervisor: {selectedReportSession.evaluator?.name || 'Supervisor'}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsReportModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* CAIXA DE INFORMAÇÕES: IA + SUPERVISOR + GESTÃO */}
+            <div className="space-y-4">
+              {/* 1. RELATÓRIO DIAGNÓSTICO GERADO PELA IA */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-white to-purple-50/50 border border-indigo-200/90 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-xs">
+                      <Sparkles className="w-5 h-5 text-amber-200" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-black text-base text-slate-900 leading-tight">
+                        Relatório Diagnóstico Gerado pela IA
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Síntese automatizada da análise de leitura oral (Whisper Fonético + Google Gemini)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                      Acurácia: {selectedReportSession.accuracyPercentage}%
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                      Tempo Médio: {((selectedReportSession.averageResponseTimeMs || 0)/1000).toFixed(1)}s
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white/80 p-4 rounded-xl border border-indigo-100/90 space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="font-bold text-slate-900 block text-xs uppercase tracking-wider text-indigo-700">
+                    Síntese Executiva da IA:
+                  </span>
+                  <p>
+                    {selectedReportSession.summaryJson?.executiveSummary ||
+                     (selectedReportSession.accuracyPercentage >= 80
+                       ? `A IA identificou alto índice de decodificação e fluência articulatória (${selectedReportSession.accuracyPercentage}% de precisão). O estudante demonstrou agilidade nos tempos de resposta (${((selectedReportSession.averageResponseTimeMs || 0)/1000).toFixed(1)}s) e segurança fonológica nos itens avaliados.`
+                       : selectedReportSession.accuracyPercentage >= 50
+                       ? `A IA apurou desempenho intermediário (${selectedReportSession.accuracyPercentage}% de precisão). Observou-se prontidão em estruturas canônicas simples e necessidade de apoio no reconhecimento de dígrafos e encontros consonantais.`
+                       : `A IA diagnosticou padrão compatível com a fase inicial de alfabetização (Pré-Leitor, ${selectedReportSession.accuracyPercentage}% de precisão). Recomenda-se estímulo lúdico continuado de consciência fonológica e correspondência som-grafema.`)}
+                  </p>
+                </div>
+
+                {/* Recomendações Pedagógicas da IA */}
+                {Array.isArray(selectedReportSession.summaryJson?.recommendations) && selectedReportSession.summaryJson.recommendations.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                      Intervenções Pedagógicas Recomendadas pela IA:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {selectedReportSession.summaryJson.recommendations.map((rec: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-xl bg-white border border-slate-200/80 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-indigo-900">{rec.title}</span>
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                              rec.priority === 'alta' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {rec.priority || 'sugestão'}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 leading-snug">{rec.description}</p>
+                          {Array.isArray(rec.suggestedWords) && rec.suggestedWords.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {rec.suggestedWords.map((w: string, i: number) => (
+                                <span key={i} className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono text-[10px] font-bold">
+                                  {w}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. OBSERVAÇÕES ANOTADAS PELO SUPERVISOR */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-bold text-sm sm:text-base text-amber-950 leading-tight">
+                        Observações Anotadas pelo Supervisor
+                      </h4>
+                      <p className="text-[11px] text-amber-800/80">
+                        Anotações comportamentais e contextuais registradas durante a sessão de teste
+                      </p>
+                    </div>
+                  </div>
+                  {(isSupervisor || isSuperAdmin) && !isEditingReportNotes && (
+                    <button
+                      onClick={() => setIsEditingReportNotes(true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold transition-colors cursor-pointer"
+                      title="Editar observações"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>{selectedReportSession.notes ? 'Editar Notas' : 'Adicionar Notas'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {isEditingReportNotes ? (
+                  <div className="space-y-2">
+                    <textarea
+                      rows={3}
+                      value={reportSupervisorNotes}
+                      onChange={(e) => setReportSupervisorNotes(e.target.value)}
+                      placeholder="Insira as observações sobre a atitude da criança, concentração ou fatores de interferência durante o teste..."
+                      className="w-full p-3 rounded-xl border border-amber-300 bg-white text-xs sm:text-sm text-slate-800 resize-none focus:outline-hidden focus:border-amber-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setReportSupervisorNotes(selectedReportSession.notes || '');
+                          setIsEditingReportNotes(false);
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleSaveReportSupervisorNotes}
+                        disabled={isSavingReportNotes}
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        <Save className="w-3 h-3" />
+                        <span>{isSavingReportNotes ? 'Salvando...' : 'Salvar Observações'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-amber-200/80 text-xs sm:text-sm">
+                    {selectedReportSession.notes ? (
+                      <p className="italic text-slate-800 font-medium leading-relaxed">
+                        "{selectedReportSession.notes}"
+                      </p>
+                    ) : (
+                      <p className="text-slate-400 italic">
+                        Nenhuma observação complementar foi registrada pelo supervisor nesta aplicação.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. PARECER DE HOMOLOGAÇÃO DA GESTÃO */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-sky-50/70 border border-sky-200/90 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-sky-200/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-800 flex items-center justify-center">
+                      <MessageSquare className="w-4 h-4 text-sky-700" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-bold text-sm sm:text-base text-sky-950 leading-tight">
+                        Parecer e Homologação da Gestão Pedagógica
+                      </h4>
+                      <p className="text-[11px] text-sky-800/80">
+                        Avaliação formal realizada pela coordenação / administração escolar
+                      </p>
+                    </div>
+                  </div>
+
+                  {(isAdmin || isSuperAdmin) && (
+                    <button
+                      onClick={() => {
+                        handleOpenReviewModal(selectedReportSession);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                      title="Avaliar ou atualizar parecer deste relatório"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>{selectedReportSession.adminFeedback ? 'Editar Parecer' : 'Avaliar Relatório'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="bg-white/80 p-3.5 rounded-xl border border-sky-200/80 text-xs sm:text-sm">
+                  {selectedReportSession.adminFeedback ? (
+                    <div className="space-y-1">
+                      <p className="font-medium text-slate-800 leading-relaxed">
+                        "{selectedReportSession.adminFeedback}"
+                      </p>
+                      {selectedReportSession.adminReviewedAt && (
+                        <span className="text-[10px] text-slate-400 block pt-1">
+                          Homologado em: {new Date(selectedReportSession.adminReviewedAt).toLocaleString('pt-BR')}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 italic">
+                      Este relatório ainda está pendente de avaliação pela coordenação pedagógica.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 4. TABELA DE ITENS AVALIADOS NA SESSÃO */}
+              {Array.isArray(selectedReportSession.items) && selectedReportSession.items.length > 0 && (
+                <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <span>Itens Avaliados nesta Sessão ({selectedReportSession.items.length})</span>
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-400 text-[10px] font-bold uppercase">
+                          <th className="py-2 px-2.5">Palavra Alvo</th>
+                          <th className="py-2 px-2.5">Leitura Transcrita</th>
+                          <th className="py-2 px-2.5 text-center">Tempo Resposta</th>
+                          <th className="py-2 px-2.5 text-right">Resultado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedReportSession.items.map((it: any, i: number) => (
+                          <tr key={it.id || i} className="hover:bg-slate-50/80">
+                            <td className="py-2 px-2.5 font-bold text-slate-800 font-mono text-xs">{it.targetText}</td>
+                            <td className="py-2 px-2.5 text-slate-600 font-mono text-xs">{it.transcript || '—'}</td>
+                            <td className="py-2 px-2.5 text-center text-slate-500 font-mono text-xs">
+                              {((it.responseTimeMs || 0)/1000).toFixed(1)}s
+                            </td>
+                            <td className="py-2 px-2.5 text-right">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  it.status === 'CORRETO'
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : it.status === 'POSSIVELMENTE_CORRETO'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-rose-50 text-rose-700'
+                                }`}
+                              >
+                                {it.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              >
+                Fechar Relatório
+              </button>
+            </div>
           </div>
         </div>
       )}

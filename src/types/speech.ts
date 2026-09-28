@@ -2,6 +2,7 @@ export type RecognitionStatus =
   | 'CORRETO'
   | 'POSSIVELMENTE_CORRETO'
   | 'INCORRETO'
+  | 'OMISSAO'
   | 'SEM_RESPOSTA'
   | 'NAO_RECONHECIDO'
   | 'ERRO_TECNICO';

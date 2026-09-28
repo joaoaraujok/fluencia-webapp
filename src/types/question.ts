@@ -10,7 +10,7 @@ export type PedagogicalDiagnosis =
   | 'LEITOR_INICIANTE_2'  // Leu 21+ palavras em 60s, mas não atingiu fluência no texto
   | 'LEITOR_FLUENTE';     // >= 65 PCPM no texto, > 90% acurácia, pontuação e prosódia
 
-export type ItemType = 'letter' | 'word' | 'text' | 'phrase' | 'syllable';
+export type ItemType = 'letter' | 'word' | 'pseudoword' | 'text' | 'phrase' | 'syllable';
 
 export type SyllableStructure =
   | 'canonical_cv_cv'         // Dissílabas simples (ex: BOLA, PATO)

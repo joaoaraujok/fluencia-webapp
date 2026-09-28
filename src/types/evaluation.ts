@@ -5,7 +5,7 @@ export type { DifficultyLevel };
 
 export type EvaluationMode = 'adaptive' | 'complete' | 'pre_leitor' | 'leitor' | DifficultyLevel;
 
-export type AdaptiveEvaluationStage = 'letters' | 'words' | 'text' | 'phrases' | 'completed';
+export type AdaptiveEvaluationStage = 'letters' | 'words' | 'pseudowords' | 'text' | 'comprehension' | 'phrases' | 'completed';
 
 export interface EvaluationItemResult {
   questionId: string;
@@ -19,31 +19,40 @@ export interface EvaluationItemResult {
   normalizedTranscript?: string;
   status: RecognitionStatus;
   
-  // Métricas temporais rigorosas (Regra 5)
-  presentationTimeMs?: number; // Momento de apresentação
-  speechStartMs?: number;      // Momento de início da fala
-  speechEndMs?: number;        // Momento de término da fala
-  reactionTimeMs?: number;     // Tempo entre apresentação e início da fala
-  speechDurationMs?: number;   // Duração real da fala
-  totalTimeMs?: number;        // Tempo total do item (reação + fala)
-  responseTimeMs: number;      // Tempo total decorrido do cronômetro
-  availableTimeMs: number;     // Limite máximo do item (10s ou 15s)
+  // Métricas temporais rigorosas (Regra 5 e Protocolo de Avaliação)
+  presentationTimeMs?: number;    // Momento de apresentação
+  speechStartMs?: number;         // Momento de início da fala
+  speechEndMs?: number;           // Momento de término da fala
+  reactionTimeMs?: number;        // Tempo entre apresentação e início da fala
+  speechDurationMs?: number;      // Duração real da fala
+  totalTimeMs?: number;           // Tempo total do item (reação + fala)
+  responseTimeMs: number;         // Tempo total decorrido do cronômetro
+  availableTimeMs: number;        // Limite máximo do item (3s/5s/10s/15s/60s)
+  
+  // Tratamento matemático explícito de silêncios e efetividade
+  grossRecordingTimeMs?: number;  // Tempo bruto de gravação
+  speechDetectedTimeMs?: number;  // Tempo com fala detectada
+  silenceTimeMs?: number;         // Tempo de silêncio deduzido
+  effectiveReadingTimeMs?: number;// Tempo efetivo de leitura (excluindo silêncios de encerramento)
+  aiProcessingTimeMs?: number;    // Tempo consumido no processamento da IA
+  isOmission?: boolean;           // Verdadeiro se nenhuma fala foi detectada na janela inicial de 3s
+  omissionReason?: string;        // Justificativa da omissão
   
   // Indicadores de qualidade articulatória e automaticidade (Regras 5, 7, 13 e 15)
   confidence: number;
-  confidenceNote?: string;     // Se < 0.65 -> "Indeterminada — baixa confiança"
+  confidenceNote?: string;        // Se < 0.65 -> "Indeterminada — baixa confiança"
   similarity?: number;
   numberOfAttempts?: number;
   recognitionQuality?: string;
   provider?: string;
   phonemeFindings?: string[];
-  observedError?: string;      // Categoria do erro (troca_fonema, omissao, acrescimo, etc)
-  pedagogicalNote?: string;    // Nota pedagógica acolhedora da IA (Whisper + Gemini)
-  isSelfCorrection?: boolean;  // Se houve autocorreção
-  silabationDetected?: boolean;// Se houve silabação evidente
-  isTimeLimitReached?: boolean;// Se atingiu o tempo máximo de 10s ou 15s
-  pausesCount?: number;        // Quantidade de pausas detectadas
-  pausesDurationMs?: number;   // Duração acumulada das pausas
+  observedError?: string;         // Categoria do erro (troca_fonema, omissao, acrescimo, etc)
+  pedagogicalNote?: string;       // Nota pedagógica acolhedora da IA (Whisper + Gemini)
+  isSelfCorrection?: boolean;     // Se houve autocorreção
+  silabationDetected?: boolean;   // Se houve silabação evidente
+  isTimeLimitReached?: boolean;   // Se atingiu o tempo máximo de 5s/10s/15s/60s
+  pausesCount?: number;           // Quantidade de pausas detectadas
+  pausesDurationMs?: number;      // Duração acumulada das pausas
 }
 
 export interface PracticeRecommendation {
@@ -128,6 +137,35 @@ export interface PhrasesReportMetrics {
   cadenceDescription: string;
 }
 
+// Perguntas de Compreensão Textual (Seção 10)
+export interface ComprehensionQuestionItem {
+  id: string;
+  textId: string;
+  question: string;
+  expectedAnswer: string;
+  questionType: 'literal' | 'inferencial';
+}
+
+export interface ComprehensionAnswerResult {
+  questionId: string;
+  question: string;
+  expectedAnswer: string;
+  questionType: 'literal' | 'inferencial';
+  childResponseText: string;
+  score: 0 | 1;
+  status: 'CORRETO' | 'INCORRETO' | 'INCONCLUSIVO';
+}
+
+export interface ComprehensionReportMetrics {
+  evaluated: boolean;
+  eligible: boolean;
+  ineligibilityReason?: string;
+  totalQuestions: number;
+  correctCount: number;
+  scorePercentage: number;
+  answers: ComprehensionAnswerResult[];
+}
+
 // Resumo Executivo para Leitura Rápida do Supervisor (Regra 20)
 export interface ExecutiveSummary {
   currentLevelTitle: string;
@@ -176,8 +214,12 @@ export interface EvaluationSession {
   // Detalhamento por etapa adaptativa
   lettersReport?: LettersReportMetrics;
   wordsReport?: WordsReportMetrics;
+  pseudowordsReport?: WordsReportMetrics;
   textReport?: TextReportMetrics;
+  comprehensionReport?: ComprehensionReportMetrics;
   phrasesReport?: PhrasesReportMetrics;
+  
+  letterSequence?: string[]; // Sequência sorteada das 10 letras para auditabilidade
   
   items: EvaluationItemResult[];
   levelScores: Record<DifficultyLevel, LevelScore>;

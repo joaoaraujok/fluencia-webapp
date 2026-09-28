@@ -469,4 +469,93 @@ describe('Motor Adaptativo de Fluência Leitora - Regras Oficiais', () => {
       expect(metrics.confusions[0].spoken).toBe('d');
     });
   });
+
+  describe('Critérios Mínimos de Progressão Entre Níveis de Dificuldade', () => {
+    it('deve exigir pelo menos 7 letras corretas para classificar acima de PRÉ-LEITOR 1 quando baterias de 10 letras forem avaliadas', () => {
+      // 6 letras corretas de 10 -> PRE_LEITOR_1 (não atinge o limiar mínimo de 7 para palavras)
+      const letters6 = {
+        presented: 10,
+        correct: 6,
+        accuracy: 60,
+        averageReactionTimeMs: 1500,
+        noResponseCount: 2,
+        timeExceededCount: 2,
+        confusions: [],
+        recognizedLetters: ['A', 'E', 'I', 'O', 'U', 'B'],
+        challengingLetters: ['C', 'D', 'F', 'G']
+      };
+      const words0 = {
+        presented: 0,
+        correct: 0,
+        incorrect: 0,
+        noResponse: 0,
+        timeExceededCount: 0,
+        wordsPerMinute: 0,
+        accuracy: 0,
+        averageReactionTimeMs: 0,
+        averageDurationMs: 0,
+        pausesCount: 0,
+        selfCorrectionsCount: 0,
+        silabationCount: 0,
+        errorBreakdown: {}
+      };
+
+      expect(classifyPedagogicalDiagnosis(letters6, words0)).toBe('PRE_LEITOR_1');
+
+      // 7 letras corretas de 10 -> atinge critério mínimo de progressão -> PRE_LEITOR_2
+      const letters7 = { ...letters6, correct: 7, accuracy: 70 };
+      expect(classifyPedagogicalDiagnosis(letters7, words0)).toBe('PRE_LEITOR_2');
+    });
+
+    it('deve classificar conforme proficiência em palavras quando a etapa de palavras for atingida', () => {
+      const letters = {
+        presented: 10,
+        correct: 8,
+        accuracy: 80,
+        averageReactionTimeMs: 1200,
+        noResponseCount: 1,
+        timeExceededCount: 1,
+        confusions: [],
+        recognizedLetters: [],
+        challengingLetters: []
+      };
+
+      // Se leu 5 palavras de 10 (50%, abaixo dos 60% para pseudopalavras), classifica como PRE_LEITOR_3
+      const words5 = {
+        presented: 10,
+        correct: 5,
+        incorrect: 5,
+        noResponse: 0,
+        timeExceededCount: 0,
+        wordsPerMinute: 6,
+        accuracy: 50,
+        averageReactionTimeMs: 2500,
+        averageDurationMs: 3500,
+        pausesCount: 2,
+        selfCorrectionsCount: 0,
+        silabationCount: 2,
+        errorBreakdown: {}
+      };
+      expect(classifyPedagogicalDiagnosis(letters, words5)).toBe('PRE_LEITOR_3');
+
+      // Se leu 12 palavras (WPM 15, >= 60%), classifica como LEITOR_INICIANTE_1
+      const words12 = {
+        presented: 15,
+        correct: 12,
+        incorrect: 3,
+        noResponse: 0,
+        timeExceededCount: 0,
+        wordsPerMinute: 15,
+        accuracy: 80,
+        averageReactionTimeMs: 1500,
+        averageDurationMs: 2200,
+        pausesCount: 1,
+        selfCorrectionsCount: 1,
+        silabationCount: 1,
+        errorBreakdown: {}
+      };
+      expect(classifyPedagogicalDiagnosis(letters, words12)).toBe('LEITOR_INICIANTE_1');
+    });
+  });
 });
+

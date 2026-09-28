@@ -139,7 +139,7 @@ export class UsersService {
       }
     }
 
-    const dataToUpdate: Prisma.UserUpdateInput = {};
+    const dataToUpdate: Prisma.UserUncheckedUpdateInput = {};
     if (name !== undefined) dataToUpdate.name = name.trim();
     if (email !== undefined) {
       const normalizedEmail = email.trim().toLowerCase();
@@ -166,9 +166,9 @@ export class UsersService {
         if (!school) {
           throw new AppError('Escola vinculada informada não existe.', 404);
         }
-        dataToUpdate.school = { connect: { id: schoolId } };
+        dataToUpdate.schoolId = schoolId;
       } else {
-        dataToUpdate.school = { disconnect: true };
+        dataToUpdate.schoolId = null;
       }
     }
 

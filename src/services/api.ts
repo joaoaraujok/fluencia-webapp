@@ -279,6 +279,13 @@ class ApiService {
     });
   }
 
+  public async updateEvaluationNotes(id: string, notes: string): Promise<{ session: any }> {
+    return this.request<{ session: any }>(`/evaluations/${id}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes })
+    });
+  }
+
   public async analyzeAudioItem(formData: FormData): Promise<AudioAnalysisResponse> {
     return this.request<AudioAnalysisResponse>('/evaluations/analyze-audio', {
       method: 'POST',

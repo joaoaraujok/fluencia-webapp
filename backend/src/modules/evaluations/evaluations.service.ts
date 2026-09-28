@@ -133,6 +133,49 @@ export class EvaluationsService {
     return session;
   }
 
+  public async updateEvaluationNotes({
+    id,
+    notes,
+    actorUserId,
+    actorSchoolId
+  }: {
+    id: string;
+    notes: string;
+    actorUserId: string;
+    actorSchoolId?: string | null;
+  }) {
+    const session = await prisma.evaluationSession.findUnique({ where: { id } });
+    if (!session) {
+      throw new AppError('Avaliação não encontrada.', 404);
+    }
+
+    if (actorSchoolId && session.schoolId !== actorSchoolId) {
+      throw new AppError('Você não tem permissão para alterar observações desta avaliação.', 403);
+    }
+
+    const updated = await prisma.evaluationSession.update({
+      where: { id },
+      data: { notes: notes.trim() },
+      include: {
+        student: true,
+        class: true,
+        school: true,
+        evaluator: { select: { id: true, name: true, email: true, role: true } },
+        items: true
+      }
+    });
+
+    await recordAuditLog({
+      userId: actorUserId,
+      action: 'UPDATE',
+      entity: 'EvaluationSession',
+      entityId: id,
+      newValue: { notes }
+    });
+
+    return updated;
+  }
+
   public async createEvaluationSession({
     id,
     studentId,
@@ -205,6 +248,7 @@ export class EvaluationsService {
           incorrectCount++;
           break;
         case RecognitionStatus.SEM_RESPOSTA:
+        case RecognitionStatus.OMISSAO:
           noResponseCount++;
           break;
         default:

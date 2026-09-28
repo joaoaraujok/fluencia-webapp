@@ -54,6 +54,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [autoAdvance, setAutoAdvance] = useState<boolean>(settings.autoAdvance ?? true);
   const [silentModeDuringSpeech, setSilentModeDuringSpeech] = useState<boolean>(settings.silentModeDuringSpeech ?? true);
   const [educatorManualControls, setEducatorManualControls] = useState<boolean>(settings.educatorManualControls ?? true);
+  const [minLettersForWords, setMinLettersForWords] = useState<number>(settings.minLettersForWords ?? 7);
+  const [minWordsPercentageForPseudo, setMinWordsPercentageForPseudo] = useState<number>(settings.minWordsPercentageForPseudo ?? 60);
+  const [minPseudoPercentageForText, setMinPseudoPercentageForText] = useState<number>(settings.minPseudoPercentageForText ?? 50);
 
   // Visual & Sons
   const [fontSize, setFontSize] = useState<FontSizeSetting>(settings.fontSize ?? 'large');
@@ -80,6 +83,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setAutoAdvance(settings.autoAdvance ?? true);
       setSilentModeDuringSpeech(settings.silentModeDuringSpeech ?? true);
       setEducatorManualControls(settings.educatorManualControls ?? true);
+      setMinLettersForWords(settings.minLettersForWords ?? 7);
+      setMinWordsPercentageForPseudo(settings.minWordsPercentageForPseudo ?? 60);
+      setMinPseudoPercentageForText(settings.minPseudoPercentageForText ?? 50);
 
       setFontSize(settings.fontSize ?? 'large');
       setSoundEnabled(settings.soundEnabled ?? true);
@@ -118,6 +124,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       autoAdvance,
       silentModeDuringSpeech,
       educatorManualControls,
+      minLettersForWords,
+      minWordsPercentageForPseudo,
+      minPseudoPercentageForText,
       fontSize,
       soundEnabled,
       // Retrocompatibilidade
@@ -138,6 +147,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setSpeechTolerance(DEFAULT_SETTINGS.speechTolerance);
       setPhoneticSupportEnabled(DEFAULT_SETTINGS.phoneticSupportEnabled);
       setAutoAdvance(DEFAULT_SETTINGS.autoAdvance);
+      setMinLettersForWords(DEFAULT_SETTINGS.minLettersForWords);
+      setMinWordsPercentageForPseudo(DEFAULT_SETTINGS.minWordsPercentageForPseudo);
+      setMinPseudoPercentageForText(DEFAULT_SETTINGS.minPseudoPercentageForText);
       setSilentModeDuringSpeech(DEFAULT_SETTINGS.silentModeDuringSpeech);
       setEducatorManualControls(DEFAULT_SETTINGS.educatorManualControls);
       setFontSize(DEFAULT_SETTINGS.fontSize);
@@ -545,6 +557,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
+              </div>
+
+              {/* Critérios Mínimos de Progressão (Níveis de Dificuldade) */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3.5">
+                <div>
+                  <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-indigo-600" />
+                    <span>Critérios Mínimos de Progressão Entre Níveis de Dificuldade</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Define o desempenho mínimo que a criança deve atingir para avançar à próxima etapa avaliativa.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      Letras para Palavras
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={minLettersForWords}
+                        onChange={(e) => setMinLettersForWords(Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 7)))}
+                        className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <span className="text-[11px] font-medium text-slate-500 shrink-0">acertos</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Padrão: 7 de 10</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      Palavras para Pseudopalavras
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={minWordsPercentageForPseudo}
+                        onChange={(e) => setMinWordsPercentageForPseudo(Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 60)))}
+                        className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <span className="text-[11px] font-medium text-slate-500 shrink-0">%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Padrão: 60%</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      Pseudopalavras para Texto
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={minPseudoPercentageForText}
+                        onChange={(e) => setMinPseudoPercentageForText(Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 50)))}
+                        className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <span className="text-[11px] font-medium text-slate-500 shrink-0">%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Padrão: 50%</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

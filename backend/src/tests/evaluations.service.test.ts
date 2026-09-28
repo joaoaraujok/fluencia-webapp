@@ -7,7 +7,7 @@ vi.mock('../database/prisma.js', () => ({
   prisma: {
     student: { findUnique: vi.fn() },
     evaluationCriteria: { findUnique: vi.fn(), create: vi.fn() },
-    evaluationSession: { findUnique: vi.fn(), create: vi.fn() },
+    evaluationSession: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() }
   }
 }));
@@ -107,5 +107,55 @@ describe('EvaluationsService - Persistência e Cálculo Pedagógico', () => {
     expect(createCallArgs.incorrectCount).toBe(1);
     expect(createCallArgs.noResponseCount).toBe(1);
     expect(createCallArgs.criteriaVersion).toBe('2026.1');
+  });
+
+  describe('updateEvaluationNotes', () => {
+    it('deve atualizar as observações anotadas pelo supervisor com sucesso', async () => {
+      const mockSession = {
+        id: 'eval-1',
+        schoolId: 'school-1',
+        notes: 'Nota anterior'
+      };
+
+      (prisma.evaluationSession.findUnique as any).mockResolvedValue(mockSession);
+      (prisma.evaluationSession.update as any).mockResolvedValue({
+        ...mockSession,
+        notes: 'Aluno demonstrou bom ritmo nas palavras simples.'
+      });
+
+      const result = await service.updateEvaluationNotes({
+        id: 'eval-1',
+        notes: 'Aluno demonstrou bom ritmo nas palavras simples.',
+        actorUserId: 'user-supervisor-1',
+        actorSchoolId: 'school-1'
+      });
+
+      expect(prisma.evaluationSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'eval-1' },
+          data: { notes: 'Aluno demonstrou bom ritmo nas palavras simples.' }
+        })
+      );
+      expect(result.notes).toBe('Aluno demonstrou bom ritmo nas palavras simples.');
+    });
+
+    it('deve impedir que o supervisor atualize observações de outra escola', async () => {
+      const mockSession = {
+        id: 'eval-1',
+        schoolId: 'school-outra',
+        notes: 'Nota'
+      };
+
+      (prisma.evaluationSession.findUnique as any).mockResolvedValue(mockSession);
+
+      await expect(
+        service.updateEvaluationNotes({
+          id: 'eval-1',
+          notes: 'Tentativa de alteração não autorizada',
+          actorUserId: 'user-supervisor-1',
+          actorSchoolId: 'school-1'
+        })
+      ).rejects.toThrow('Você não tem permissão para alterar observações desta avaliação.');
+    });
   });
 });
