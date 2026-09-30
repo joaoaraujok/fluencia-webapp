@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   QUESTION_BANK,
   getQuestionsByLevel,
-  selectEvaluationItems
+  selectEvaluationItems,
+  TEXT_BANK,
+  PSEUDOWORD_BANK,
+  selectRandomText,
+  selectPseudowords,
+  selectRandomWords,
+  getComprehensionQuestionsForText
 } from '../data/questionBank';
 
 describe('Banco de Questões e Randomizador (questionBank)', () => {
@@ -103,5 +109,48 @@ describe('Banco de Questões e Randomizador (questionBank)', () => {
     expect(levels.slice(20, 26).every(l => l === 3)).toBe(true);
     // 4 finais: Nível 4 (Frases Curtas)
     expect(levels.slice(26, 30).every(l => l === 4)).toBe(true);
+  });
+
+  it('deve possuir banco de histórias ampliado (pelo menos 8 textos) com 3 perguntas de compreensão cada', () => {
+    expect(TEXT_BANK.length).toBeGreaterThanOrEqual(8);
+
+    TEXT_BANK.forEach((story: any) => {
+      expect(story.text.length).toBeGreaterThan(50);
+      const questions = getComprehensionQuestionsForText(story.id);
+      expect(questions.length).toBe(3);
+      questions.forEach((q: any) => {
+        expect(q.question).toBeDefined();
+        expect(q.expectedAnswer).toBeDefined();
+        expect(['literal', 'inferencial']).toContain(q.questionType);
+      });
+    });
+
+    const randomStory = selectRandomText();
+    expect(randomStory).toBeDefined();
+    expect(TEXT_BANK.map((t: any) => t.id)).toContain(randomStory.id);
+  });
+
+  it('deve possuir banco de pseudopalavras ampliado (mais de 60 itens)', () => {
+    expect(PSEUDOWORD_BANK.length).toBeGreaterThanOrEqual(60);
+
+    const sample = selectPseudowords(10);
+    expect(sample.length).toBe(10);
+    expect(sample.every((p: any) => p.type === 'pseudoword')).toBe(true);
+  });
+
+  it('selectRandomWords deve selecionar 20 palavras balanceadas sem repetição', () => {
+    const words = selectRandomWords(20);
+    expect(words.length).toBe(20);
+
+    const ids = words.map((w: any) => w.id);
+    expect(new Set(ids).size).toBe(20);
+
+    const simple = words.filter((w: any) => w.level === 1);
+    const medium = words.filter((w: any) => w.level === 2);
+    const complex = words.filter((w: any) => w.level === 3);
+
+    expect(simple.length).toBe(8);
+    expect(medium.length).toBe(8);
+    expect(complex.length).toBe(4);
   });
 });

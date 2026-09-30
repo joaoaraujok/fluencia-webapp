@@ -122,18 +122,45 @@ export class EvaluationsController {
   public async analyzeAudio(req: Request, res: Response, next: NextFunction): Promise<void> {
     const filePath = req.file?.path;
     try {
-      if (!req.file || !filePath) {
-        throw new AppError('Nenhum arquivo de áudio enviado (campo audioFile obrigatório)', 400);
-      }
-
       const targetText = String(req.body.targetText || '').trim();
       const itemType = String(req.body.itemType || 'word').trim();
-
-      console.log(`[EvaluationsController] POST /analyze-audio: arquivo=${req.file.filename} (${req.file.size} bytes), alvo="${targetText}", tipo="${itemType}"`);
+      const directTranscript = String(req.body.transcriptText || req.body.transcript || '').trim();
 
       if (!targetText) {
         throw new AppError('O campo targetText é obrigatório', 400);
       }
+
+      if (!req.file || !filePath) {
+        if (directTranscript) {
+          console.log(`[EvaluationsController] POST /analyze-audio (via texto): alvo="${targetText}", tipo="${itemType}", transcrição="${directTranscript}"`);
+          const analysis = await speechAiService.analyzePedagogicalReading(
+            targetText,
+            directTranscript,
+            itemType
+          );
+
+          const finalDisplayTranscript = (itemType === 'letter' && analysis.status === 'CORRETO')
+            ? targetText.toUpperCase()
+            : directTranscript;
+
+          res.status(200).json({
+            status: 'success',
+            data: {
+              transcript: finalDisplayTranscript,
+              status: analysis.status,
+              similarity: analysis.similarity,
+              observedError: analysis.observedError,
+              phonemeFindings: analysis.phonemeFindings,
+              pedagogicalNote: analysis.pedagogicalNote,
+              duration: 0
+            }
+          });
+          return;
+        }
+        throw new AppError('Nenhum arquivo de áudio enviado (campo audioFile obrigatório)', 400);
+      }
+
+      console.log(`[EvaluationsController] POST /analyze-audio: arquivo=${req.file.filename} (${req.file.size} bytes), alvo="${targetText}", tipo="${itemType}"`);
 
       // 1. Transcrição com Whisper Large v3 Turbo via Groq com biasing fonético
       const transcriptionResult = await speechAiService.transcribeAudio(filePath, targetText, itemType);

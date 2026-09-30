@@ -192,13 +192,21 @@ async function seed() {
     console.log(`✅ Estudantes criados para a turma.`);
   }
 
-  // 6. Carga do Banco de Questões (3 Níveis de Dificuldade de Palavras + Frases Curtas)
+  // 6. Carga do Banco de Questões (Letras, Palavras, Pseudopalavras, Textos e Frases)
   const existingQuestions = await prisma.question.count();
   if (existingQuestions === 0) {
-    const questionsData = [
-      // ==========================================
-      // DIFICULDADE 1: PALAVRAS SIMPLES (5s)
-      // ==========================================
+    const lettersData = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'].map(l => ({
+      text: l,
+      level: QuestionLevel.PRE_LEITOR,
+      type: ItemType.LETTER,
+      syllablesCount: 1,
+      syllableStructure: 'letter',
+      category: ['A', 'E', 'I', 'O', 'U'].includes(l) ? 'vogal' : 'consoante',
+      difficulty: 1
+    }));
+
+    const wordsData = [
+      // Nível 1 - Simples (Dissílabas Canônicas CV-CV)
       { text: 'BOLA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'brinquedos', difficulty: 1 },
       { text: 'PATO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'animais', difficulty: 1 },
       { text: 'BOCA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'corpo', difficulty: 1 },
@@ -211,14 +219,21 @@ async function seed() {
       { text: 'GATO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'animais', difficulty: 1 },
       { text: 'BOLO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'alimentos', difficulty: 1 },
       { text: 'CASA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'cotidiano', difficulty: 1 },
-      { text: 'PIPOCA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'alimentos', difficulty: 1 },
-      { text: 'BONECA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'brinquedos', difficulty: 1 },
-      { text: 'PANELA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'objetos', difficulty: 1 },
-      { text: 'MACACO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'animais', difficulty: 1 },
+      { text: 'FOGO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'natureza', difficulty: 1 },
+      { text: 'MESA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'objetos', difficulty: 1 },
+      { text: 'LIXO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'cotidiano', difficulty: 1 },
+      { text: 'SOFÁ', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'objetos', difficulty: 1 },
+      { text: 'NAVE', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'brinquedos', difficulty: 1 },
+      { text: 'BULE', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'objetos', difficulty: 1 },
+      { text: 'DEDO', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'corpo', difficulty: 1 },
+      { text: 'RODA', level: QuestionLevel.PRE_LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'brinquedos', difficulty: 1 },
 
-      // ==========================================
-      // DIFICULDADE 2: PALAVRAS MÉDIAS (Dígrafos e Encontros) (6s)
-      // ==========================================
+      // Nível 2 - Médias (Dígrafos e Encontros Consonantais)
+      { text: 'PIPOCA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'alimentos', difficulty: 2 },
+      { text: 'BONECA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'brinquedos', difficulty: 2 },
+      { text: 'PANELA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'objetos', difficulty: 2 },
+      { text: 'MACACO', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'animais', difficulty: 2 },
+      { text: 'CAVALO', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 3, syllableStructure: 'canonical_cv_cv_cv', category: 'animais', difficulty: 2 },
       { text: 'CHUVA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'natureza', difficulty: 2 },
       { text: 'CHAVE', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'objetos', difficulty: 2 },
       { text: 'MILHO', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'digraph_lh', category: 'alimentos', difficulty: 2 },
@@ -234,9 +249,7 @@ async function seed() {
       { text: 'PORTA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'cotidiano', difficulty: 2 },
       { text: 'BARCO', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'cotidiano', difficulty: 2 },
 
-      // ==========================================
-      // DIFICULDADE 3: PALAVRAS COMPLEXAS (Polissílabas) (8s)
-      // ==========================================
+      // Nível 3 - Complexas e Polissílabas
       { text: 'BORBOLETA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'natureza', difficulty: 3 },
       { text: 'CHOCOLATE', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'digraph_ch', category: 'alimentos', difficulty: 3 },
       { text: 'DINOSSAURO', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'complex_ccv', category: 'animais', difficulty: 3 },
@@ -245,11 +258,40 @@ async function seed() {
       { text: 'REFRIGERANTE', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 5, syllableStructure: 'cluster_r', category: 'alimentos', difficulty: 3 },
       { text: 'BICICLETA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'cluster_l', category: 'brinquedos', difficulty: 3 },
       { text: 'PROFESSORA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano', difficulty: 3 },
-      { text: 'TRAVESSURA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano', difficulty: 3 },
+      { text: 'TRAVESSURA', level: QuestionLevel.LEITOR, type: ItemType.WORD, syllablesCount: 4, syllableStructure: 'cluster_r', category: 'cotidiano', difficulty: 3 }
+    ];
 
-      // ==========================================
-      // FRASES CURTAS CONTEXTUALIZADAS (15s)
-      // ==========================================
+    const pseudowordsData = [
+      // Simples
+      { text: 'BALO', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'TIPO', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'GADE', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'MUTA', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'FEBO', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'DATO', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'SOFE', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      { text: 'RANO', level: QuestionLevel.PRE_LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra', difficulty: 1 },
+      // Médias
+      { text: 'COTRA', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra', difficulty: 2 },
+      { text: 'BLAPO', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra', difficulty: 2 },
+      { text: 'TARTA', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra', difficulty: 2 },
+      { text: 'FRINHO', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra', difficulty: 2 },
+      { text: 'CHURTE', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'pseudopalavra', difficulty: 2 },
+      // Complexas
+      { text: 'TAPEROCA', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra', difficulty: 3 },
+      { text: 'MARAFOTE', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra', difficulty: 3 },
+      { text: 'BORFELETA', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra', difficulty: 3 },
+      { text: 'DURPATE', level: QuestionLevel.LEITOR, type: ItemType.PSEUDOWORD, syllablesCount: 3, syllableStructure: 'complex_cvc', category: 'pseudopalavra', difficulty: 3 }
+    ];
+
+    const textsData = [
+      { text: 'MIMOSO É UM GATO MUITO BONITO. ELE GOSTA DE BRINCAR COM A BOLA DE LÃ NO QUINTAL. TODA MANHÃ, O GATINHO TOMA LEITE FRESCO NA TIGELA. QUANDO A NOITE CHEGA, ELE SOBE NO SOFÁ E DORME BEM TRANQUILO.', level: QuestionLevel.LEITOR, type: ItemType.TEXT, syllablesCount: 78, syllableStructure: 'text_story', category: 'animais', difficulty: 3 },
+      { text: 'NO DOMINGO DE SOL, LUCAS E ANA FORAM AO BOSQUE COM A FAMÍLIA. ELES LEVARAM UMA CESTA CHEIA DE FRUTAS, SUCO DE LARANJA E UM BOLO GOSTOSO. AS CRIANÇAS CORRERAM NA GRAMA E VIRAM LINDOS PÁSSAROS CANTANDO NAS ÁRVORES. FOI UM DIA MUITO DIVERTIDO.', level: QuestionLevel.LEITOR, type: ItemType.TEXT, syllablesCount: 96, syllableStructure: 'text_story', category: 'cotidiano', difficulty: 3 },
+      { text: 'NO DIA DE CHUVA, PEDRO FEZ UM BARQUINHO DE PAPEL AMARELO. ELE COLOCOU O BARCO NA ENXURRADA DA RUA. O BARQUINHO NAVEGOU BEM RÁPIDO ENTRE AS FOLHAS CAÍDAS. PEDRO CORREU PELA CALÇADA COM SUA CAPA AZUL, SORRINDO AO VER O BARCO SEGUIR O SEU CAMINHO.', level: QuestionLevel.LEITOR, type: ItemType.TEXT, syllablesCount: 88, syllableStructure: 'text_story', category: 'brinquedos', difficulty: 3 },
+      { text: 'A TARTARUGA TATÁ VIVE PERTO DO RIO CRISTALINO. ELA CAMINHA DEVAGAR PELA AREIA QUENTE, PROCURANDO FOLHAS VERDES PARA COMER. QUANDO OUVE UM BARULHO ESTRANHO, TATÁ ENCOLHE A CABEÇA E AS PATAS DENTRO DO CASCO DURO. DEPOIS QUE O PERIGO PASSA, ELA CONTINUA SEU PASSEIO FELIZ.', level: QuestionLevel.LEITOR, type: ItemType.TEXT, syllablesCount: 92, syllableStructure: 'text_story', category: 'animais', difficulty: 3 }
+    ];
+
+    const phrasesData = [
       { text: 'O SAPO PULA.', level: QuestionLevel.LEITOR, type: ItemType.PHRASE, syllablesCount: 5, syllableStructure: 'phrase_short', category: 'animais', difficulty: 4 },
       { text: 'A BOLA CAIU.', level: QuestionLevel.LEITOR, type: ItemType.PHRASE, syllablesCount: 5, syllableStructure: 'phrase_short', category: 'brinquedos', difficulty: 4 },
       { text: 'O GATO BEBE LEITE.', level: QuestionLevel.LEITOR, type: ItemType.PHRASE, syllablesCount: 7, syllableStructure: 'phrase_short', category: 'animais', difficulty: 4 },
@@ -258,8 +300,16 @@ async function seed() {
       { text: 'A MENINA LÊ UM LIVRO.', level: QuestionLevel.LEITOR, type: ItemType.PHRASE, syllablesCount: 7, syllableStructure: 'phrase_short', category: 'cotidiano', difficulty: 4 }
     ];
 
+    const allQuestions = [
+      ...lettersData,
+      ...wordsData,
+      ...pseudowordsData,
+      ...textsData,
+      ...phrasesData
+    ];
+
     await prisma.question.createMany({
-      data: questionsData.map((q, idx) => ({
+      data: allQuestions.map((q, idx) => ({
         text: q.text,
         level: q.level,
         type: q.type,
@@ -272,7 +322,7 @@ async function seed() {
         version: 1
       }))
     });
-    console.log(`✅ ${questionsData.length} questões pedagógicas inseridas no banco.`);
+    console.log(`✅ ${allQuestions.length} itens pedagógicos (letras, palavras, pseudopalavras, textos e frases) inseridos no banco.`);
   }
 
   // 7. Configurações pedagógicas globais

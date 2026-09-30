@@ -46,6 +46,42 @@ export const WHISPER_LETTER_ALIASES: Record<string, string[]> = {
   Z: ['Z', 'ZE', 'ZÊ', 'ZI', 'ZEE']
 };
 
+function calculateLevenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = i - 1;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + cost);
+      prev = cur;
+    }
+  }
+  return row[b.length];
+}
+
+function calculateSimilarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1.0;
+  const dist = calculateLevenshtein(a, b);
+  return Math.max(0, 1 - dist / maxLen);
+}
+
+function detectSpokenLetter(spokenText: string): string | null {
+  const norm = spokenText.toUpperCase().trim();
+  for (const [letter, aliases] of Object.entries(WHISPER_LETTER_ALIASES)) {
+    if (norm === letter || aliases.includes(norm)) {
+      return letter;
+    }
+  }
+  return null;
+}
+
 export class SpeechAiService {
   private groq: Groq;
   private ai: GoogleGenAI;
@@ -129,167 +165,102 @@ export class SpeechAiService {
       .trim();
 
     const cleanTranscriptNorm = cleanTranscript.replace(/[^A-Z0-9\s]/g, '').trim();
-    const transcriptWords = cleanTranscriptNorm.split(/\s+/).filter(Boolean);
 
-    // 2. Fast-Path Ultrarrápido (<1ms) para acertos diretos
-    // Evita o overhead de 2-4 segundos da chamada HTTP ao Gemini quando a transcrição já é conclusiva
+    // 2. Análise Pedagógica e Fonética Precisa via Google Gemini
+    // Utiliza systemInstruction otimizado e thinkingBudget: 0 para resposta ultra-rápida (~1.2s) com alta precisão técnica
+    const systemInstruction = `Você é um avaliador pedagógico e fonético de alfabetização infantil (MEC/SAEB Brasil).
+Avalie a leitura e pronúncia da criança com rigor técnico e concisão cirúrgica.
+Critérios essenciais:
+- "letter": Aceite a pronúncia do nome da letra (ex: "bê", "cê", "eme"), o fonema correspondente ou a própria letra. O Whisper costuma transcrever artefatos acústicos como "Amy" para M, "Any" para N, "Eli" para L, "Air" para R (considere CORRETO). Identifique trocas fônicas/auditivas (ex: som /d/ em vez de /b/).
+- "word": Avalie a decodificação da palavra, respeitando sotaques regionais. Aponte substituições consonantais ou vocálicas.
+- "pseudoword": Rota fonológica estrita. Troca de fonema ou substituição por palavra real deve ser classificada como INCORRETO.
+- "text": Leitura de história corrida. Avalie acurácia e decodificação funcional (>75% de palavras = CORRETO/POSSIVELMENTE_CORRETO).
+- "phrase": Leitura de frase com respeito à estrutura sintática.
+Regra de ouro de velocidade e precisão:
+- Se CORRETO: observedError = "", phonemeFindings = [], pedagogicalNote = "Leitura correta e precisa."
+- Se INCORRETO: observedError = resumo objetivo do erro (máx 15 palavras), phonemeFindings = lista concisa de trocas fonêmicas (ex: ["/tr/ -> /pr/"]), pedagogicalNote = orientação pedagógica curta (máx 1 frase).
+Retorne SEMPRE o JSON estruturado requerido.`;
 
-    // Caso Letra:
-    if (itemType === 'letter') {
-      const allowedAliases = WHISPER_LETTER_ALIASES[cleanTarget] || [cleanTarget];
-      const wordsWithoutFillers = transcriptWords.filter(
-        (w) => !['E', 'EH', 'O', 'A', 'LETRA', 'UM', 'UMA', 'DE', 'DA', 'DO', 'OQUE', 'QUE'].includes(w)
-      );
-
-      const isDirectLetterMatch =
-        cleanTranscript === cleanTarget ||
-        cleanTranscriptNorm === cleanTargetNorm ||
-        allowedAliases.includes(cleanTranscript) ||
-        allowedAliases.includes(cleanTranscriptNorm) ||
-        wordsWithoutFillers.some((w) => allowedAliases.includes(w) || w === cleanTarget || w === cleanTargetNorm);
-
-      if (isDirectLetterMatch) {
-        console.log(`[Fast-Path] Acerto direto para letra "${cleanTarget}" (transcrição: "${transcriptText}")`);
-        return {
-          status: 'CORRETO',
-          similarity: 1.0,
-          observedError: '',
-          phonemeFindings: [],
-          pedagogicalNote: `A pronúncia da letra ${targetText} foi precisa e correta.`
-        };
-      }
-    }
-
-    // Caso Palavra:
-    if (itemType === 'word') {
-      const wordsWithoutFillers = transcriptWords.filter(
-        (w) => !['O', 'A', 'E', 'EH', 'É', 'UM', 'UMA', 'EU', 'DISSE', 'FALEI', 'TÁ'].includes(w)
-      );
-
-      const isDirectWordMatch =
-        cleanTranscript === cleanTarget ||
-        cleanTranscriptNorm === cleanTargetNorm ||
-        (wordsWithoutFillers.length === 1 && wordsWithoutFillers[0] === cleanTargetNorm) ||
-        (wordsWithoutFillers.length > 1 && wordsWithoutFillers[wordsWithoutFillers.length - 1] === cleanTargetNorm);
-
-      if (isDirectWordMatch) {
-        console.log(`[Fast-Path] Acerto direto para palavra "${cleanTarget}" (transcrição: "${transcriptText}")`);
-        return {
-          status: 'CORRETO',
-          similarity: 1.0,
-          observedError: '',
-          phonemeFindings: [],
-          pedagogicalNote: `Leitura correta e fluida da palavra "${targetText}".`
-        };
-      }
-    }
-
-    // Caso Pseudopalavra:
-    if (itemType === 'pseudoword') {
-      const wordsWithoutFillers = transcriptWords.filter(
-        (w) => !['O', 'A', 'E', 'EH', 'É', 'UM', 'UMA'].includes(w)
-      );
-
-      const isDirectPseudoMatch =
-        cleanTranscript === cleanTarget ||
-        cleanTranscriptNorm === cleanTargetNorm ||
-        (wordsWithoutFillers.length === 1 && wordsWithoutFillers[0] === cleanTargetNorm);
-
-      if (isDirectPseudoMatch) {
-        console.log(`[Fast-Path] Decodificação correta da pseudopalavra "${cleanTarget}" (transcrição: "${transcriptText}")`);
-        return {
-          status: 'CORRETO',
-          similarity: 1.0,
-          observedError: '',
-          phonemeFindings: [],
-          pedagogicalNote: `Decodificação fonológica precisa da pseudopalavra "${targetText}".`
-        };
-      }
-    }
-
-    // 3. Análise Pedagógica com Google Gemini 3.8 Flash (para erros, divergências fonológicas ou textos)
-    const systemPrompt = `Você é um especialista em avaliação pedagógica de leitura e alfabetização infantil em língua portuguesa (Brasil), seguindo as diretrizes do MEC e do SAEB Alfabetização.
-Sua função é avaliar com acolhimento a tentativa de leitura de uma criança dos anos iniciais do Ensino Fundamental.
-
-Tipo de item: ${itemType}
+    const userContent = `Tipo de item: ${itemType}
 Texto esperado (alvo): "${targetText}"
-Texto pronunciado/transcrito: "${transcriptText}"
+Texto pronunciado (transcrito): "${transcriptText}"`;
 
-Regras Específicas por Tipo de Item:
-- Se tipo de item for "letter" (letra isolada):
-  A criança pode legitimamente produzir o nome da letra (ex: "bê", "cê", "eme"), o fonema (/b/, /m/) ou a própria letra.
-  Whisper pode transcrever "Amy" para M, "Any" para N, "Eli" para L, "Air" para R. Considere CORRETO nesses casos.
-- Se tipo de item for "word":
-  Leitura da palavra alvo (ex: "BOLA", "DADO"), aceitando ritmo infantil e sotaques regionais.
-- Se tipo de item for "pseudoword" (pseudopalavra):
-  Avalie estritamente a decodificação grafema-fonema pela rota fonológica.
-  NUNCA aceite uma palavra real substituta (ex: para "BALO" falar "BOLA" é INCORRETO).
-- Se tipo de item for "text":
-  Leitura de história corrida. Avalie o percentual de palavras decodificadas com precisão (> 75% = CORRETO/POSSIVELMENTE_CORRETO).
-- Se tipo de item for "phrase":
-  Leitura de frase simples.
-
-Retorne JSON estruturado com:
-1. "status": 'CORRETO' | 'POSSIVELMENTE_CORRETO' | 'INCORRETO' | 'SEM_RESPOSTA'
-2. "similarity": Número decimal de 0.0 a 1.0
-3. "observedError": Descrição pedagógica objetiva e direta do erro (string vazia "" se correto)
-4. "phonemeFindings": Lista de observações fonéticas (array vazio [] se correto)
-5. "pedagogicalNote": Feedback acolhedor e humanizado. NUNCA use termos médicos/patologizantes.`;
-
-    console.log(`[Google Gemini] Enviando para análise pedagógica detalhada: tipo=${itemType}, alvo="${targetText}", transcrição="${transcriptText}"`);
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+    console.log(`[Google Gemini] Avaliando fala com IA: tipo=${itemType}, alvo="${targetText}", transcrição="${transcriptText}"`);
+    const primaryModel = env.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    const candidateModels = [
+      primaryModel,
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.6-flash'
+    ];
+    const modelsToTry = candidateModels.filter((val, idx, arr) => arr.indexOf(val) === idx);
     let rawResponseText = '';
 
     for (const modelName of modelsToTry) {
       try {
-        const response = await this.ai.models.generateContent({
-          model: modelName,
-          contents: systemPrompt,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: 0.1,
-            maxOutputTokens: 250,
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                status: {
-                  type: Type.STRING,
-                  enum: ['CORRETO', 'POSSIVELMENTE_CORRETO', 'INCORRETO', 'SEM_RESPOSTA']
-                },
-                similarity: {
-                  type: Type.NUMBER
-                },
-                observedError: {
-                  type: Type.STRING
-                },
-                phonemeFindings: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.STRING
-                  }
-                },
-                pedagogicalNote: {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout de rede no modelo ${modelName}`)), 6000)
+        );
+
+        const isLite = modelName.includes('-lite');
+        const config: any = {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          temperature: 0.0,
+          maxOutputTokens: 140,
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              status: {
+                type: Type.STRING,
+                enum: ['CORRETO', 'POSSIVELMENTE_CORRETO', 'INCORRETO', 'SEM_RESPOSTA']
+              },
+              similarity: {
+                type: Type.NUMBER
+              },
+              observedError: {
+                type: Type.STRING
+              },
+              phonemeFindings: {
+                type: Type.ARRAY,
+                items: {
                   type: Type.STRING
                 }
               },
-              required: ['status', 'similarity', 'observedError', 'phonemeFindings', 'pedagogicalNote']
-            }
+              pedagogicalNote: {
+                type: Type.STRING
+              }
+            },
+            required: ['status', 'similarity', 'observedError', 'phonemeFindings', 'pedagogicalNote']
           }
+        };
+
+        if (!isLite) {
+          config.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const apiCallPromise = this.ai.models.generateContent({
+          model: modelName,
+          contents: userContent,
+          config
         });
 
-        rawResponseText = response.text || '';
+        const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
+        rawResponseText = response?.text || response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
         if (rawResponseText) {
-          console.log(`[Google Gemini] Análise pedagógica concluída com sucesso via modelo [${modelName}]`);
+          console.log(`[Google Gemini] Revisão fonética concluída com sucesso via modelo [${modelName}]`);
           break;
         }
       } catch (geminiError: any) {
-        console.warn(`[Google Gemini] Erro transitório no modelo ${modelName}:`, geminiError?.message || geminiError);
+        console.warn(`[Google Gemini] Aviso de latência/falha no modelo ${modelName}:`, geminiError?.message || geminiError);
       }
     }
 
     try {
       if (rawResponseText) {
-        const parsed = JSON.parse(rawResponseText.trim()) as PedagogicalAnalysisResult;
+        const cleaned = rawResponseText.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned) as PedagogicalAnalysisResult;
         return {
           status: parsed.status,
           similarity: typeof parsed.similarity === 'number' ? parsed.similarity : 0,
@@ -302,6 +273,7 @@ Retorne JSON estruturado com:
       console.warn('[Google Gemini] Falha no parse da resposta estruturada:', rawResponseText, parseError);
     }
 
+    // Fallback Fonético de Segurança (caso a rede/API do Google fique offline)
     const fallbackCleanTranscript = transcriptText.trim().toLowerCase();
     const fallbackCleanTarget = targetText.trim().toLowerCase();
 
@@ -311,12 +283,19 @@ Retorne JSON estruturado com:
       isMatch = aliases.some((alias) => cleanTranscript.includes(alias.toLowerCase()));
     }
 
+    const dist = calculateLevenshtein(cleanTargetNorm, cleanTranscriptNorm);
+    const sim = calculateSimilarity(cleanTargetNorm, cleanTranscriptNorm);
+
     return {
-      status: isMatch ? 'CORRETO' : 'INCORRETO',
-      similarity: isMatch ? 1.0 : 0.0,
-      observedError: isMatch ? '' : 'Divergência entre o texto alvo e a emissão vocal.',
-      phonemeFindings: [],
-      pedagogicalNote: isMatch ? 'Leitura precisa identificada.' : 'Tentativa de leitura registrada com sucesso.'
+      status: isMatch ? 'CORRETO' : (sim >= 0.85 ? 'POSSIVELMENTE_CORRETO' : 'INCORRETO'),
+      similarity: isMatch ? 1.0 : Number(sim.toFixed(2)),
+      observedError: isMatch
+        ? ''
+        : `Divergência entre o texto alvo "${targetText}" e a emissão oral ("${transcriptText}").`,
+      phonemeFindings: isMatch ? [] : [`Aferição fonética: similaridade de ${Math.round(sim * 100)}%`],
+      pedagogicalNote: isMatch
+        ? 'Leitura precisa identificada.'
+        : `Tentativa de leitura registrada com sucesso. Estimule a criança na decodificação de "${targetText}".`
     };
   }
 
@@ -351,37 +330,62 @@ Retorne um JSON com:
 - "recommendations": 3 a 4 intervenções pedagógicas lúdicas recomendadas para os próximos passos na sala de aula.`;
 
     console.log(`[Google Gemini] Gerando síntese pedagógica da sessão para ${input.childName || 'Estudante'}...`);
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+    const primaryModel = env.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    const candidateModels = [
+      primaryModel,
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.6-flash'
+    ];
+    const modelsToTry = candidateModels.filter((val, idx, arr) => arr.indexOf(val) === idx);
 
     for (const modelName of modelsToTry) {
       try {
-        const response = await this.ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                executiveSummary: { type: Type.STRING },
-                strengths: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                },
-                recommendations: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
+        const isLite = modelName.includes('-lite');
+        const config: any = {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 350,
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              executiveSummary: { type: Type.STRING },
+              strengths: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               },
-              required: ['executiveSummary', 'strengths', 'recommendations']
-            }
+              recommendations: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ['executiveSummary', 'strengths', 'recommendations']
           }
-        });
+        };
 
-        const text = response.text || '';
+        if (!isLite) {
+          config.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout no modelo ${modelName}`)), 4000)
+        );
+
+        const response: any = await Promise.race([
+          this.ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config
+          }),
+          timeoutPromise
+        ]);
+
+        const text = response?.text || response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
         if (text) {
+          const cleaned = text.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
           console.log(`[Google Gemini] Síntese pedagógica gerada com sucesso via [${modelName}]`);
-          return JSON.parse(text.trim());
+          return JSON.parse(cleaned);
         }
       } catch (err: any) {
         console.warn(`[Google Gemini] Erro transitório no modelo ${modelName} para síntese:`, err?.message || err);

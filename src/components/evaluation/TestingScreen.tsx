@@ -89,10 +89,10 @@ export const TestingScreen: React.FC<TestingScreenProps> = ({
     if (isWord || currentStage === 'words') {
       return { label: 'Etapa 2: Palavras Reais', limit: '10s' };
     }
-    if (isText || currentStage === 'text') {
+    if (isText || currentStage === 'text' || currentStage === 'comprehension') {
       return { label: 'Etapa 4: Leitura de Texto', limit: '60s' };
     }
-    return { label: 'Etapa 5: Frases', limit: '15s' };
+    return { label: 'Etapa 4: Leitura de Texto', limit: '60s' };
   };
 
   const stage = getStageBadge();

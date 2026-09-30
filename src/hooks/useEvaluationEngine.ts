@@ -34,14 +34,14 @@ import {
 import { QuestionItem } from '../types/question';
 import { AppSettings } from '../types/settings';
 import {
-  TEXT_BANK,
   PHRASE_BANK,
-  QUESTION_BANK,
   selectRandomLetters,
   selectPseudowords,
+  selectRandomWords,
+  selectRandomText,
   getComprehensionQuestionsForText
 } from '../data/questionBank';
-import { ItemStateMachine, TimingMetrics } from '../services/evaluationStateMachine';
+import { ItemStateMachine, TimingMetrics, DEFAULT_TIMING_CONFIG } from '../services/evaluationStateMachine';
 
 export type EvaluationPhase = 'idle' | 'preparing' | 'testing' | 'completed';
 
@@ -141,12 +141,9 @@ export function useEvaluationEngine({
       }
 
       case 'words': {
-        // Etapa de Palavras reais canônicas, médias e complexas
-        const simple = QUESTION_BANK.filter(q => q.level === 1).slice(0, 8);
-        const medium = QUESTION_BANK.filter(q => q.level === 2).slice(0, 8);
-        const complex = QUESTION_BANK.filter(q => q.level === 3).slice(0, 4);
-        const combined = [...simple, ...medium, ...complex];
-        return combined.length > 0 ? combined : initialItems.filter(i => i.type === 'word');
+        // Etapa de Palavras reais canônicas, médias e complexas com aleatorização equilibrada
+        const randomWords = selectRandomWords(20);
+        return randomWords.length > 0 ? randomWords : initialItems.filter(i => i.type === 'word');
       }
 
       case 'pseudowords': {
@@ -155,8 +152,8 @@ export function useEvaluationEngine({
       }
 
       case 'text': {
-        // Seção 7: Texto narrativo em contexto
-        const textItem = TEXT_BANK[0];
+        // Seção 7: Texto narrativo aleatorizado em contexto
+        const textItem = selectRandomText();
         lastReadTextTitleRef.current = textItem.category || 'História Infantil';
         return [textItem];
       }
@@ -418,10 +415,10 @@ export function useEvaluationEngine({
         }
       },
       {
-        initialSilenceWindowMs: 5000,
-        postSpeechSilenceWindowMs: 2000,
-        maxPostSpeechDurationMs: 5000,
-        textSilenceWindowMs: 4000,
+        initialSilenceWindowMs: DEFAULT_TIMING_CONFIG.initialSilenceWindowMs,
+        postSpeechSilenceWindowMs: DEFAULT_TIMING_CONFIG.postSpeechSilenceWindowMs,
+        maxPostSpeechDurationMs: DEFAULT_TIMING_CONFIG.maxPostSpeechDurationMs,
+        textSilenceWindowMs: DEFAULT_TIMING_CONFIG.textSilenceWindowMs,
         maxTextDurationMs: (settings.durationTextSec ?? 60) * 1000
       }
     );
@@ -530,7 +527,7 @@ export function useEvaluationEngine({
     let provider = captured.provider;
     let isAiAnalyzed = false;
 
-    // Envia ao pipeline de IA fonética (Groq Whisper + Gemini) sempre que houver áudio gravado
+    // Envia ao pipeline de IA fonética (Groq Whisper + Google Gemini) sempre que houver áudio gravado
     if (audioBlob && audioBlob.size > 100) {
       try {
         const formData = new FormData();
@@ -547,15 +544,39 @@ export function useEvaluationEngine({
           observedError = aiResponse.observedError;
           phonemeFindings = aiResponse.phonemeFindings || [];
           pedagogicalNote = aiResponse.pedagogicalNote;
-          provider = 'groq-whisper-v3 + gemini-3.8-flash';
+          provider = 'groq-whisper-v3 + gemini-flash';
           isAiAnalyzed = true;
           setLiveTranscript(finalTranscript || localTranscript);
         }
       } catch (aiErr) {
         console.warn('[FluencIA] API de IA offline ou inatingível. Aplicando contingência com análise fonética local:', aiErr);
       }
+    } else if (localTranscript && localTranscript.trim() && !isOmission) {
+      // Se não gravou binário de áudio mas há transcrição oral capturada,
+      // envia diretamente ao Gemini para garantir que 100% das checagens passem por IA
+      try {
+        const formData = new FormData();
+        formData.append('targetText', item.text);
+        formData.append('itemType', item.type);
+        formData.append('transcriptText', localTranscript);
+
+        const aiResponse = await api.analyzeAudioItem(formData);
+        if (aiResponse && aiResponse.status) {
+          finalTranscript = aiResponse.transcript || localTranscript;
+          finalStatus = aiResponse.status as RecognitionStatus;
+          similarity = aiResponse.similarity;
+          observedError = aiResponse.observedError;
+          phonemeFindings = aiResponse.phonemeFindings || [];
+          pedagogicalNote = aiResponse.pedagogicalNote;
+          provider = 'gemini-flash';
+          isAiAnalyzed = true;
+          setLiveTranscript(finalTranscript || localTranscript);
+        }
+      } catch (aiErr) {
+        console.warn('[FluencIA] Erro na análise direta de transcrição com Gemini:', aiErr);
+      }
     } else {
-      console.warn(`[FluencIA] Item #${itemIndex + 1} (${item.text}): Sem áudio capturado (${audioBlob?.size ?? 0} bytes) para envio à IA.`);
+      console.warn(`[FluencIA] Item #${itemIndex + 1} (${item.text}): Sem emissão vocal capturada (${audioBlob?.size ?? 0} bytes).`);
     }
 
     // 5. Avaliação pedagógica estruturada do item
@@ -841,37 +862,14 @@ export function useEvaluationEngine({
           answers: []
         };
 
-        if (textReport && textReport.isFluentEligible) {
-          currentStageRef.current = 'phrases';
-          setCurrentStage('phrases');
-          const phraseItems = prepareStageItems('phrases');
-          stageItemsRef.current = phraseItems;
-          setStageItems(phraseItems);
-          setCurrentIndex(0);
-          currentIndexRef.current = 0;
-          startItem(0, phraseItems);
-          return;
-        }
-
+        // Etapa 5 de frases removida: encerra a avaliação diretamente
         finishEvaluation(false);
         return;
       }
     }
 
-    // Conclusão da Etapa de Frases Curtas (Apenas Leitor Fluente)
+    // Caso resulte em phrases (compatibilidade defensiva)
     if (completedStage === 'phrases') {
-      const phraseItems = allEvaluated.filter(i => i.type === 'phrase');
-      const phraseCompleted = phraseItems.filter(i => i.status === 'CORRETO' || i.status === 'POSSIVELMENTE_CORRETO').length;
-      phrasesReportRef.current = {
-        evaluated: true,
-        presented: phraseItems.length,
-        completed: phraseCompleted,
-        incomplete: phraseItems.length - phraseCompleted,
-        accuracy: phraseItems.length > 0 ? Math.round((phraseCompleted / phraseItems.length) * 100) : 0,
-        averageTimeMs: 8000,
-        prosodyScore: 88,
-        cadenceDescription: 'Leitura contínua e expressiva com respeito funcional à pontuação'
-      };
       finishEvaluation(false);
       return;
     }
@@ -895,20 +893,7 @@ export function useEvaluationEngine({
       answers
     };
 
-    // Se o estudante atingir perfil de Leitor Fluente, prossegue para Frases para prosódia avançada
-    if (textReportRef.current && textReportRef.current.isFluentEligible) {
-      currentStageRef.current = 'phrases';
-      setCurrentStage('phrases');
-      const phraseItems = prepareStageItems('phrases');
-      stageItemsRef.current = phraseItems;
-      setStageItems(phraseItems);
-      setCurrentIndex(0);
-      currentIndexRef.current = 0;
-      startItem(0, phraseItems);
-      return;
-    }
-
-    // Conclui a avaliação
+    // Etapa 5 de frases removida: a avaliação se encerra após a etapa de compreensão
     finishEvaluation(false);
   };
 
@@ -1186,7 +1171,8 @@ export function useEvaluationEngine({
     if (isTransitioningRef.current || isAnalyzingAi) return;
 
     const elapsed = Date.now() - itemStartTimestampRef.current;
-    if (elapsed < 400 && !intentionalSpeechDetectedRef.current) {
+    // Previne avanço acidental prematuro se nenhuma fala intencional foi detectada
+    if (elapsed < 600 && !intentionalSpeechDetectedRef.current) {
       return;
     }
 

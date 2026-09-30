@@ -140,6 +140,66 @@ export const TEXT_BANK: QuestionItem[] = [
     syllableStructure: 'text_story',
     category: 'cotidiano',
     difficulty: 3
+  },
+  {
+    id: 'txt_03',
+    text: 'NO DIA DE CHUVA, PEDRO FEZ UM BARQUINHO DE PAPEL AMARELO. ELE COLOCOU O BARCO NA ENXURRADA DA RUA. O BARQUINHO NAVEGOU BEM RÁPIDO ENTRE AS FOLHAS CAÍDAS. PEDRO CORREU PELA CALÇADA COM SUA CAPA AZUL, SORRINDO AO VER O BARCO SEGUIR O SEU CAMINHO.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 88,
+    syllableStructure: 'text_story',
+    category: 'brinquedos',
+    difficulty: 3
+  },
+  {
+    id: 'txt_04',
+    text: 'A TARTARUGA TATÁ VIVE PERTO DO RIO CRISTALINO. ELA CAMINHA DEVAGAR PELA AREIA QUENTE, PROCURANDO FOLHAS VERDES PARA COMER. QUANDO OUVE UM BARULHO ESTRANHO, TATÁ ENCOLHE A CABEÇA E AS PATAS DENTRO DO CASCO DURO. DEPOIS QUE O PERIGO PASSA, ELA CONTINUA SEU PASSEIO FELIZ.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 92,
+    syllableStructure: 'text_story',
+    category: 'animais',
+    difficulty: 3
+  },
+  {
+    id: 'txt_05',
+    text: 'LUCAS GANHOU UMA PIPA COLORIDA DO SEU AVÔ. NUMA TARDE DE VENTO FORTE, ELE FOI AO PARQUE COM SUA IRMÃ MARINA. A PIPA SUBIU ALTO NO CÉU AZUL, PARECENDO UM PÁSSARO ENCANTADO. TODAS AS CRIANÇAS DO PARQUE APLAUDIRAM A LINDA DANÇA DA PIPA NAS NUVENS.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 89,
+    syllableStructure: 'text_story',
+    category: 'brinquedos',
+    difficulty: 3
+  },
+  {
+    id: 'txt_06',
+    text: 'O VOVÔ CHICO CUIDA DA HORTA COM MUITO CARINHO TODAS AS MANHÃS. ELE PLANTA CENOURAS, TOMATES VERMELHOS E ALFACE BEM FRESQUINHA. SUAS NETAS ADORAM AJUDAR A REGAR OS CANTEIROS COM O PEQUENO REGADOR VERDE. NA HORA DO ALMOÇO, A SALADA COLORIDA É O PRATO MAIS GOSTOSO DA MESA.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 95,
+    syllableStructure: 'text_story',
+    category: 'alimentos',
+    difficulty: 3
+  },
+  {
+    id: 'txt_07',
+    text: 'PIPOCA É UM CACHORRINHO PELUDO E MUITO BRINCALHÃO. ELE ADORA CORRER ATRÁS DA BOLA VERMELHA NO JARDIM DA CASA. QUANDO A BOLA ENTRA DEBAIXO DA MOITA, PIPOCA LATE BAIXINHO E PEDE AJUDA. ELE FICA TÃO CONTENTE QUE ABANA O RABINHO SEM PARAR AO RECEBER UM CARINHO.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 94,
+    syllableStructure: 'text_story',
+    category: 'animais',
+    difficulty: 3
+  },
+  {
+    id: 'txt_08',
+    text: 'QUANDO A PRIMAVERA CHEGOU AO JARDIM DA ESCOLA, AS FLORES SE ABRIRAM COLORIDAS E PERFUMADAS. DUAS BORBOLETAS AMARELAS VOARAM ENTRE AS ROSAS E POUSARAM SUAVEMENTE NUMA MARGARIDA BRANCA. OS ALUNOS FICARAM ENCANTADOS OLHANDO PELA JANELA DA SALA DE AULA O BALÉ SUAVE DAS ASAS AO VENTO.',
+    level: 3,
+    type: 'text',
+    syllablesCount: 98,
+    syllableStructure: 'text_story',
+    category: 'natureza',
+    difficulty: 3
   }
 ];
 
@@ -190,8 +250,154 @@ export const TEXT_COMPREHENSION_QUESTIONS: Record<string, ComprehensionQuestionI
       expectedAnswer: 'Elas correram na grama e viram lindos pássaros cantando nas árvores.',
       questionType: 'inferencial'
     }
+  ],
+  txt_03: [
+    {
+      id: 'q_txt03_1',
+      textId: 'txt_03',
+      question: 'De que cor era o barquinho de papel que Pedro fez no dia de chuva?',
+      expectedAnswer: 'O barquinho de papel era amarelo.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt03_2',
+      textId: 'txt_03',
+      question: 'Onde Pedro colocou o barquinho para navegar?',
+      expectedAnswer: 'Colocou na enxurrada da rua.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt03_3',
+      textId: 'txt_03',
+      question: 'Por que Pedro estava sorrindo enquanto corria pela calçada com sua capa azul?',
+      expectedAnswer: 'Porque ficou contente ao ver o barquinho seguir navegando seu caminho.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_04: [
+    {
+      id: 'q_txt04_1',
+      textId: 'txt_04',
+      question: 'Onde a tartaruga Tatá vive e o que procura na areia para comer?',
+      expectedAnswer: 'Ela vive perto do rio cristalino e procura folhas verdes.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt04_2',
+      textId: 'txt_04',
+      question: 'O que Tatá faz imediatamente quando ouve um barulho estranho?',
+      expectedAnswer: 'Ela encolhe a cabeça e as patas dentro do casco duro.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt04_3',
+      textId: 'txt_04',
+      question: 'Por que a tartaruga encolhe as patas e a cabeça dentro do casco?',
+      expectedAnswer: 'Para se proteger e ficar em segurança até o perigo passar.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_05: [
+    {
+      id: 'q_txt05_1',
+      textId: 'txt_05',
+      question: 'Quem deu a pipa colorida para Lucas de presente?',
+      expectedAnswer: 'Seu avô.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt05_2',
+      textId: 'txt_05',
+      question: 'Com quem Lucas foi ao parque numa tarde de vento forte?',
+      expectedAnswer: 'Com sua irmã Marina.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt05_3',
+      textId: 'txt_05',
+      question: 'Por que as crianças do parque aplaudiram a pipa no céu?',
+      expectedAnswer: 'Porque ela voou bem alto e fez uma linda dança no céu com o vento.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_06: [
+    {
+      id: 'q_txt06_1',
+      textId: 'txt_06',
+      question: 'Quais vegetais o vovô Chico planta na horta todas as manhãs?',
+      expectedAnswer: 'Cenouras, tomates vermelhos e alface fresca.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt06_2',
+      textId: 'txt_06',
+      question: 'Como as netas do vovô Chico ajudam a cuidar dos canteiros?',
+      expectedAnswer: 'Elas ajudam regando os canteiros com o regador verde.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt06_3',
+      textId: 'txt_06',
+      question: 'Por que a salada colorida foi o prato mais gostoso do almoço?',
+      expectedAnswer: 'Porque foi colhida fresquinha da horta que todos cuidaram com carinho.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_07: [
+    {
+      id: 'q_txt07_1',
+      textId: 'txt_07',
+      question: 'Com que brinquedo o cachorrinho Pipoca mais gosta de correr no jardim?',
+      expectedAnswer: 'Com a bola vermelha.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt07_2',
+      textId: 'txt_07',
+      question: 'O que Pipoca faz quando a bola vai parar debaixo da moita?',
+      expectedAnswer: 'Ele late baixinho para pedir ajuda.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt07_3',
+      textId: 'txt_07',
+      question: 'Como Pipoca demonstra que está feliz quando ganha um carinho?',
+      expectedAnswer: 'Ele abana o rabinho sem parar de tanta alegria.',
+      questionType: 'inferencial'
+    }
+  ],
+  txt_08: [
+    {
+      id: 'q_txt08_1',
+      textId: 'txt_08',
+      question: 'O que aconteceu com as flores do jardim da escola com a chegada da primavera?',
+      expectedAnswer: 'As flores se abriram bem coloridas e perfumadas.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt08_2',
+      textId: 'txt_08',
+      question: 'Em que flor as duas borboletas amarelas pousaram suavemente?',
+      expectedAnswer: 'Numa margarida branca.',
+      questionType: 'literal'
+    },
+    {
+      id: 'q_txt08_3',
+      textId: 'txt_08',
+      question: 'O que mostra que as crianças da escola adoraram ver as borboletas?',
+      expectedAnswer: 'Elas ficaram encantadas observando o balé das asas pela janela da sala.',
+      questionType: 'inferencial'
+    }
   ]
 };
+
+/**
+ * Retorna uma história aleatória do banco de textos
+ */
+export function selectRandomText(): QuestionItem {
+  const randomIndex = Math.floor(Math.random() * TEXT_BANK.length);
+  return TEXT_BANK[randomIndex];
+}
 
 /**
  * Retorna exatamente as 3 perguntas de compreensão associadas ao texto
@@ -202,7 +408,7 @@ export function getComprehensionQuestionsForText(textId: string): ComprehensionQ
 
 // Banco Oficial de Pseudopalavras (Decodificação Fonológica Pura - Seção 6)
 export const PSEUDOWORD_BANK: QuestionItem[] = [
-  // Dissílabas Canônicas (CV-CV)
+  // Dissílabas Canônicas (CV-CV) - Nível 1
   { id: 'pseudo_01', text: 'BALO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
   { id: 'pseudo_02', text: 'TIPO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
   { id: 'pseudo_03', text: 'GADE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
@@ -215,26 +421,66 @@ export const PSEUDOWORD_BANK: QuestionItem[] = [
   { id: 'pseudo_10', text: 'LUBA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
   { id: 'pseudo_11', text: 'PAVE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
   { id: 'pseudo_12', text: 'ZEPO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_13', text: 'BIME', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_14', text: 'SADO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_15', text: 'GUVI', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_16', text: 'JAPE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_17', text: 'VULA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_18', text: 'PEMO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_19', text: 'DIFO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_20', text: 'KEMA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_21', text: 'ZOTE', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_22', text: 'TURA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_23', text: 'FOPI', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_24', text: 'MEVO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_25', text: 'GULA', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_26', text: 'BEPO', level: 1, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'canonical_cv_cv', category: 'pseudopalavra' },
 
-  // Médias: Dígrafos e Encontros Consonantais
-  { id: 'pseudo_13', text: 'COTRA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
-  { id: 'pseudo_14', text: 'BLAPO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
-  { id: 'pseudo_15', text: 'TARTA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
-  { id: 'pseudo_16', text: 'PELTO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
-  { id: 'pseudo_17', text: 'FRINHO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
-  { id: 'pseudo_18', text: 'CHURTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'pseudopalavra' },
-  { id: 'pseudo_19', text: 'LHARCO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_lh', category: 'pseudopalavra' },
-  { id: 'pseudo_20', text: 'FLOME', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
-  { id: 'pseudo_21', text: 'CLUTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
-  { id: 'pseudo_22', text: 'GRENO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  // Médias: Dígrafos e Encontros Consonantais - Nível 2
+  { id: 'pseudo_27', text: 'COTRA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_28', text: 'BLAPO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_29', text: 'TARTA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_30', text: 'PELTO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_31', text: 'FRINHO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
+  { id: 'pseudo_32', text: 'CHURTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'pseudopalavra' },
+  { id: 'pseudo_33', text: 'LHARCO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_lh', category: 'pseudopalavra' },
+  { id: 'pseudo_34', text: 'FLOME', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_35', text: 'CLUTE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_36', text: 'GRENO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_37', text: 'BROMA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_38', text: 'PLITA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_39', text: 'TRELHO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_lh', category: 'pseudopalavra' },
+  { id: 'pseudo_40', text: 'GMINHA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
+  { id: 'pseudo_41', text: 'CHALCO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_ch', category: 'pseudopalavra' },
+  { id: 'pseudo_42', text: 'VLATO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_43', text: 'DRUFE', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_44', text: 'CRAPO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_45', text: 'BRUNHA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
+  { id: 'pseudo_46', text: 'FLECO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_47', text: 'SPINA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_48', text: 'TROVI', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_49', text: 'QUIDA', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_qu', category: 'pseudopalavra' },
+  { id: 'pseudo_50', text: 'NHUTO', level: 2, type: 'pseudoword', syllablesCount: 2, syllableStructure: 'digraph_nh', category: 'pseudopalavra' },
 
-  // Polissílabas e Estruturas Complexas
-  { id: 'pseudo_23', text: 'TAPEROCA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
-  { id: 'pseudo_24', text: 'MARAFOTE', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
-  { id: 'pseudo_25', text: 'LAMINUDO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
-  { id: 'pseudo_26', text: 'PICOTELO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
-  { id: 'pseudo_27', text: 'BORFELETA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
-  { id: 'pseudo_28', text: 'DURPATE', level: 3, type: 'pseudoword', syllablesCount: 3, syllableStructure: 'complex_cvc', category: 'pseudopalavra' }
+  // Polissílabas e Estruturas Complexas - Nível 3
+  { id: 'pseudo_51', text: 'TAPEROCA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_52', text: 'MARAFOTE', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_53', text: 'LAMINUDO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_54', text: 'PICOTELO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_55', text: 'BORFELETA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_56', text: 'DURPATE', level: 3, type: 'pseudoword', syllablesCount: 3, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_57', text: 'CLAVADUBA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'cluster_l', category: 'pseudopalavra' },
+  { id: 'pseudo_58', text: 'TROPELINA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_59', text: 'FRONDILAU', level: 3, type: 'pseudoword', syllablesCount: 3, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_60', text: 'GAFATURA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_61', text: 'PELOMISTA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_62', text: 'CHILOPERTA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'digraph_ch', category: 'pseudopalavra' },
+  { id: 'pseudo_63', text: 'BROLETUDO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_64', text: 'TRAVIDOCA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_65', text: 'BALESTINA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' },
+  { id: 'pseudo_66', text: 'SARAPUTO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'canonical_cv_cv_cv', category: 'pseudopalavra' },
+  { id: 'pseudo_67', text: 'TREPOLINO', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'cluster_r', category: 'pseudopalavra' },
+  { id: 'pseudo_68', text: 'CARDUNETA', level: 3, type: 'pseudoword', syllablesCount: 4, syllableStructure: 'complex_cvc', category: 'pseudopalavra' }
 ];
 
 /**
@@ -250,7 +496,7 @@ export function selectRandomLetters(count: number = 10): QuestionItem[] {
 }
 
 /**
- * Seleciona pseudopalavras balanceadas para a etapa de pseudopalavras
+ * Seleciona pseudopalavras balanceadas para a etapa de pseudopalavras com aleatorização completa
  */
 export function selectPseudowords(count: number = 10): QuestionItem[] {
   const simple = PSEUDOWORD_BANK.filter(p => p.level === 1);
@@ -270,6 +516,31 @@ export function selectPseudowords(count: number = 10): QuestionItem[] {
     ...shuffle(simple).slice(0, 5),
     ...shuffle(medium).slice(0, 3),
     ...shuffle(complex).slice(0, 2)
+  ];
+  return selected.slice(0, count);
+}
+
+/**
+ * Seleciona palavras balanceadas por nível (8 simples, 8 médias, 4 complexas) com aleatorização rica
+ */
+export function selectRandomWords(count: number = 20): QuestionItem[] {
+  const simple = QUESTION_BANK.filter(q => q.level === 1 && q.type === 'word');
+  const medium = QUESTION_BANK.filter(q => q.level === 2 && q.type === 'word');
+  const complex = QUESTION_BANK.filter(q => q.level === 3 && q.type === 'word');
+
+  const shuffle = <T>(arr: T[]): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const selected = [
+    ...shuffle(simple).slice(0, 8),
+    ...shuffle(medium).slice(0, 8),
+    ...shuffle(complex).slice(0, 4)
   ];
   return selected.slice(0, count);
 }

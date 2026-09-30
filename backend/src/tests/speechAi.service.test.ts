@@ -88,16 +88,31 @@ describe('SpeechAiService - Whisper Groq e Google Gemini', () => {
       expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
     });
 
-    it('deve usar Fast-Path para palavras exatas sem chamar Gemini', async () => {
+    it('deve chamar o Gemini para revisar palavras e retornar a análise estruturada em JSON', async () => {
+      const mockAiResponse = {
+        status: 'CORRETO',
+        similarity: 1.0,
+        observedError: '',
+        phonemeFindings: [],
+        pedagogicalNote: 'Leitura correta e fluida da palavra BOLA.'
+      };
+
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: JSON.stringify(mockAiResponse)
+      });
+
       const result = await service.analyzePedagogicalReading('BOLA', 'bola', 'word');
+
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
+      const callArgs = mockGeminiGenerateContent.mock.calls[0][0];
+      expect(callArgs.model).toBe('gemini-3.5-flash-lite');
+      expect(callArgs.config.responseMimeType).toBe('application/json');
 
       expect(result.status).toBe('CORRETO');
       expect(result.similarity).toBe(1.0);
-      expect(result.observedError).toBe('');
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
     });
 
-    it('deve chamar o Gemini quando houver divergência/erro e retornar a análise estruturada em JSON', async () => {
+    it('deve chamar o Gemini para diagnosticar divergências fonéticas com precisão técnica', async () => {
       const mockAiResponse = {
         status: 'INCORRETO',
         similarity: 0.5,
@@ -113,38 +128,49 @@ describe('SpeechAiService - Whisper Groq e Google Gemini', () => {
       const result = await service.analyzePedagogicalReading('BOLA', 'bota', 'word');
 
       expect(mockGeminiGenerateContent).toHaveBeenCalled();
-      const callArgs = mockGeminiGenerateContent.mock.calls[0][0];
-      expect(callArgs.model).toBe('gemini-3.8-flash');
-      expect(callArgs.config.responseMimeType).toBe('application/json');
-
       expect(result.status).toBe('INCORRETO');
       expect(result.similarity).toBe(0.5);
       expect(result.observedError).toContain('Substituição');
       expect(result.pedagogicalNote).toContain('troca');
     });
 
-    it('deve reconhecer "Amy", "Emy" e "eme" como CORRETO para a letra M (artefato acústico do Whisper via Fast-Path)', async () => {
+    it('deve acionar o Gemini para avaliar pronúncia de letras', async () => {
+      const mockAiResponse = {
+        status: 'CORRETO',
+        similarity: 1.0,
+        observedError: '',
+        phonemeFindings: ['Reconhecimento de artefato acústico Amy como letra M'],
+        pedagogicalNote: 'A pronúncia da letra M foi precisa.'
+      };
+
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: JSON.stringify(mockAiResponse)
+      });
+
       const resultAmy = await service.analyzePedagogicalReading('M', 'Amy', 'letter');
       expect(resultAmy.status).toBe('CORRETO');
       expect(resultAmy.similarity).toBe(1.0);
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
-
-      const resultEme = await service.analyzePedagogicalReading('M', 'eme', 'letter');
-      expect(resultEme.status).toBe('CORRETO');
-      expect(resultEme.similarity).toBe(1.0);
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
     });
 
-    it('deve reconhecer "Annie" e "Any" como CORRETO para a letra N e "Eli" para a letra L via Fast-Path', async () => {
-      const resultN = await service.analyzePedagogicalReading('N', 'Annie', 'letter');
-      expect(resultN.status).toBe('CORRETO');
-      expect(resultN.similarity).toBe(1.0);
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+    it('deve acionar o Gemini para avaliar erros em pseudopalavras', async () => {
+      const mockAiResponse = {
+        status: 'INCORRETO',
+        similarity: 0.5,
+        observedError: 'Desvio na rota fonológica da pseudopalavra',
+        phonemeFindings: ['Substituição de /b/ por /p/'],
+        pedagogicalNote: 'Desvio fonológico registrado.'
+      };
 
-      const resultL = await service.analyzePedagogicalReading('L', 'Eli', 'letter');
-      expect(resultL.status).toBe('CORRETO');
-      expect(resultL.similarity).toBe(1.0);
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      mockGeminiGenerateContent.mockResolvedValue({
+        text: JSON.stringify(mockAiResponse)
+      });
+
+      const result = await service.analyzePedagogicalReading('BALO', 'palo', 'pseudoword');
+      expect(result.status).toBe('INCORRETO');
+      expect(result.observedError).toContain('Desvio');
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
     });
   });
 });
+
